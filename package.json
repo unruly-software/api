@@ -9,8 +9,8 @@
   ],
   "private": true,
   "scripts": {
-    "build": "yarn workspaces foreach -pt run build",
-    "clean": "yarn workspaces foreach -pt run clean",
+    "build": "yarn workspaces foreach -t run build",
+    "clean": "yarn workspaces foreach -t run clean",
     "test": "yarn workspaces foreach -pt run test",
     "version": "changeset version",
     "release": "CI=true yarn --mode=update-lockfile && yarn build && CI=true yarn test && changeset publish",

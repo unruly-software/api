@@ -6,7 +6,7 @@
   "type": "module",
   "sideEffects": false,
   "scripts": {
-    "build": "rm -rf ./dist && microbundle ./src/router.ts",
+    "build": "rm -rf ./dist && microbundle",
     "build:watch": "microbundle dev",
     "clean": "rm -rf ./dist",
     "test": "vitest"
