@@ -1,0 +1,16 @@
+{
+  "$schema": "https://unpkg.com/@changesets/config@2.3.1/schema.json",
+  "changelog": [
+    "@changesets/cli/changelog",
+    {
+      "repo": "unruly-software/api"
+    }
+  ],
+  "commit": false,
+  "fixed": [["@unruly-software/api-client", "@unruly-software/api-server"]],
+  "linked": [],
+  "access": "public",
+  "baseBranch": "master",
+  "updateInternalDependencies": "patch",
+  "ignore": []
+}
