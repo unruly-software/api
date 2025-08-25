@@ -1,5 +1,5 @@
 import { defineAPI } from '@unruly-software/api-client';
-import { describe, expectTypeOf, it } from 'vitest';
+import { describe, expect, expectTypeOf, it } from 'vitest';
 import z from 'zod';
 import { defineRouter } from './router';
 
@@ -98,5 +98,41 @@ describe('router', () => {
     expectTypeOf<
       ReturnType<typeof implementedRouter.endpoints.logout.handle>
     >().toEqualTypeOf<Promise<void>>();
+  });
+
+  const userRepo: UserRepo = {
+    get: async (id: string) => ({ id, token: 'valid-token' }),
+  };
+
+  it('should dispatch login events', async () => {
+    const result = await implementedRouter.dispatch({
+      endpoint: 'login',
+      context: { userRepo },
+      data: { email: 'email@email.com', password: '123' },
+    });
+
+    expectTypeOf<Parameters<typeof implementedRouter.dispatch>[0]>()
+      .toEqualTypeOf<{
+      endpoint: 'login';
+      context: { userRepo: UserRepo };
+      data: { email: string; password: string };
+    }>;
+
+    expect(result).toEqual({ token: 'valid-token' });
+    expectTypeOf(result).toEqualTypeOf<{ token: string }>();
+  });
+
+  it('should fail if an unknown endpoint is dispatched', async () => {
+    await expect(
+      implementedRouter.dispatch({
+        // @ts-expect-error Testing runtime failure
+        endpoint: 'spaghetti',
+        context: { userRepo },
+        // @ts-expect-error Testing runtime failure
+        data: {},
+      }),
+    ).rejects.toMatchInlineSnapshot(
+      '[Error: No definition for endpoint spaghetti]',
+    );
   });
 });

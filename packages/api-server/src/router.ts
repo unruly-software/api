@@ -9,7 +9,7 @@ import type {
 export type ImplementedAPIRouter<API extends APIEndpointDefinitions, CTX> = {
   dispatch: <K extends keyof API>(args: {
     endpoint: K;
-    data: unknown;
+    data: SchemaInferInput<API[K]['request']>;
     context: CTX;
   }) => Promise<SchemaServerResponse<API[K]['response']>>;
 

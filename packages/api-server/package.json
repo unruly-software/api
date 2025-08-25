@@ -6,7 +6,7 @@
   "type": "module",
   "sideEffects": false,
   "scripts": {
-    "build": "rm -rf ./dist && microbundle",
+    "build": "rm -rf ./dist && microbundle ./src/router.ts",
     "build:watch": "microbundle dev",
     "clean": "rm -rf ./dist",
     "test": "vitest"
@@ -22,19 +22,19 @@
     "vitest": "^0.31.3",
     "zod": "^4.0.0"
   },
-  "amdName": "api-client",
-  "main": "dist/api-client.js",
-  "module": "dist/api-client.module.js",
+  "amdName": "api-server",
+  "main": "dist/api-server.js",
+  "module": "dist/api-server.module.js",
   "types": "dist/index.d.ts",
-  "umd:main": "dist/api-client.umd.js",
+  "umd:main": "dist/api-server.umd.js",
   "source": "src/index.ts",
   "exports": {
     "./package.json": "./package.json",
     ".": {
       "types": "./dist/index.d.ts",
-      "umd": "./dist/api-client.umd.js",
-      "import": "./dist/api-client.mjs",
-      "require": "./dist/api-client.js"
+      "umd": "./dist/api-server.umd.js",
+      "import": "./dist/api-server.mjs",
+      "require": "./dist/api-server.js"
     }
   }
 }
