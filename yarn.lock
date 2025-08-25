@@ -2113,14 +2113,12 @@ __metadata:
   version: 0.0.0-use.local
   resolution: "@unruly-software/api-client@workspace:packages/api-client"
   dependencies:
-    "@unruly-software/value-object": ^1.0.0
     "@vitest/coverage-istanbul": ^0.32.2
     microbundle: 0.15.1
     typescript: 5.0.4
     vitest: ^0.31.3
     zod: ^4.0.0
   peerDependencies:
-    "@unruly-software/value-object": ^1.0.0
     zod: ^4.0.0
   languageName: unknown
   linkType: soft
@@ -2139,15 +2137,6 @@ __metadata:
     zod: ^4.0.0
   languageName: unknown
   linkType: soft
-
-"@unruly-software/value-object@npm:^1.0.0":
-  version: 1.0.0
-  resolution: "@unruly-software/value-object@npm:1.0.0"
-  peerDependencies:
-    zod: ^4.0.0
-  checksum: e163c4d9070bfe4b8c9eba90d2deb42023a2724af15b55b91aefaedfc1c0e5f67d71c7906823a1e161cf3b33b3195557ee2edeced00d79f8d1494c4e0d7e1745
-  languageName: node
-  linkType: hard
 
 "@vitest/coverage-istanbul@npm:^0.32.2":
   version: 0.32.4
