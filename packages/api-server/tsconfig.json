@@ -1,0 +1,9 @@
+{
+  "$schema": "https://json.schemastore.org/tsconfig",
+  "display": "Default",
+  "compilerOptions": {
+    "importHelpers": false,
+    "skipLibCheck": true,
+    "strict": true
+  }
+}

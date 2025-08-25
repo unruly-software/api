@@ -2109,7 +2109,7 @@ __metadata:
   languageName: node
   linkType: hard
 
-"@unruly-software/api-client@workspace:packages/api-client":
+"@unruly-software/api-client@workspace:*, @unruly-software/api-client@workspace:packages/api-client":
   version: 0.0.0-use.local
   resolution: "@unruly-software/api-client@workspace:packages/api-client"
   dependencies:
@@ -2120,6 +2120,21 @@ __metadata:
     zod: ^4.0.0
   peerDependencies:
     zod: ^4.0.0
+  languageName: unknown
+  linkType: soft
+
+"@unruly-software/api-server@workspace:packages/api-server":
+  version: 0.0.0-use.local
+  resolution: "@unruly-software/api-server@workspace:packages/api-server"
+  dependencies:
+    "@unruly-software/api-client": "workspace:*"
+    "@vitest/coverage-istanbul": ^0.32.2
+    microbundle: 0.15.1
+    typescript: 5.0.4
+    vitest: ^0.31.3
+    zod: ^4.0.0
+  peerDependencies:
+    "@unruly-software/api-client": ^0.0.0
   languageName: unknown
   linkType: soft
 
