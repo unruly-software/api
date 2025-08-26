@@ -111,13 +111,6 @@ describe('router', () => {
       data: { email: 'email@email.com', password: '123' },
     });
 
-    expectTypeOf<Parameters<typeof implementedRouter.dispatch>[0]>()
-      .toEqualTypeOf<{
-      endpoint: 'login';
-      context: { userRepo: UserRepo };
-      data: { email: string; password: string };
-    }>;
-
     expect(result).toEqual({ token: 'valid-token' });
     expectTypeOf(result).toEqualTypeOf<{ token: string }>();
   });

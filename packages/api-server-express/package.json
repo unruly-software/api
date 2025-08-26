@@ -1,5 +1,5 @@
 {
-  "name": "@unruly-software/api-server",
+  "name": "@unruly-software/api-server-express",
   "packageManager": "yarn@3.5.0",
   "version": "0.0.0",
   "license": "MIT",
@@ -12,29 +12,35 @@
     "test": "vitest"
   },
   "peerDependencies": {
-    "@unruly-software/api-client": "^0.0.0"
+    "@types/express": "^5.0.0",
+    "@unruly-software/api-client": "^0.0.0",
+    "@unruly-software/api-server": "^0.0.0",
+    "express": "^5.0.0"
   },
   "devDependencies": {
+    "@types/express": "^5.0.0",
     "@unruly-software/api-client": "workspace:*",
+    "@unruly-software/api-server": "workspace:*",
     "@vitest/coverage-istanbul": "3.2.4",
+    "express": "^5.0.0",
     "microbundle": "0.15.1",
     "typescript": "5.0.4",
     "vitest": "3.2.4",
     "zod": "^4.0.0"
   },
-  "amdName": "api-server",
-  "main": "dist/api-server.js",
-  "module": "dist/api-server.module.js",
+  "amdName": "api-server-express",
+  "main": "dist/api-server-express.js",
+  "module": "dist/api-server-express.module.js",
   "types": "dist/index.d.ts",
-  "umd:main": "dist/api-server.umd.js",
+  "umd:main": "dist/api-server-express.umd.js",
   "source": "src/index.ts",
   "exports": {
     "./package.json": "./package.json",
     ".": {
       "types": "./dist/index.d.ts",
-      "umd": "./dist/api-server.umd.js",
-      "import": "./dist/api-server.mjs",
-      "require": "./dist/api-server.js"
+      "umd": "./dist/api-server-express.umd.js",
+      "import": "./dist/api-server-express.mjs",
+      "require": "./dist/api-server-express.js"
     }
   }
 }

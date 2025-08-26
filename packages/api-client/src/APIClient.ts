@@ -1,5 +1,9 @@
-import type { AnyEndpointDefinition } from './endpoint';
-import type { SchemaInferInput, SchemaInferOutput } from './schema';
+import type { AnyEndpointDefinition, EndpointDefinition } from './endpoint';
+import type {
+  SchemaInferInput,
+  SchemaInferOutput,
+  SchemaValue,
+} from './schema';
 import { type ErrorMessage, makeTopic, type SuccessMessage } from './topic';
 
 export type APIResolver<T extends APIEndpointDefinitions> = (
@@ -14,6 +18,9 @@ export type APIResolver<T extends APIEndpointDefinitions> = (
 ) => Promise<unknown>;
 
 export type APIEndpointDefinitions = Record<string, AnyEndpointDefinition>;
+export type APIEndpointDefinitionWithMetadata<
+  T extends Record<string, unknown>,
+> = Record<string, EndpointDefinition<SchemaValue, SchemaValue, T>>;
 
 export type APIClientConfig<T extends APIEndpointDefinitions> = {
   resolver: APIResolver<T>;

@@ -15,10 +15,10 @@
     "zod": "^4.0.0"
   },
   "devDependencies": {
-    "@vitest/coverage-istanbul": "^0.32.2",
+    "@vitest/coverage-istanbul": "3.2.4",
     "microbundle": "0.15.1",
     "typescript": "5.0.4",
-    "vitest": "^0.31.3",
+    "vitest": "3.2.4",
     "zod": "^4.0.0"
   },
   "amdName": "api-client",

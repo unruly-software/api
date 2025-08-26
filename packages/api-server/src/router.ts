@@ -1,6 +1,7 @@
 import type {
   AnyEndpointDefinition,
   APIEndpointDefinitions,
+  APIEndpointDefinitionWithMetadata,
   SchemaInferInput,
   SchemaInferOutput,
   SchemaValue,
@@ -18,6 +19,11 @@ export type ImplementedAPIRouter<API extends APIEndpointDefinitions, CTX> = {
     [K in keyof API]: FinalizedAPIRoute<API[K], any, CTX>;
   };
 };
+
+export type ImplementedAPIRouterWithMetadata<
+  METADATA extends Record<string, unknown>,
+  CTX,
+> = ImplementedAPIRouter<APIEndpointDefinitionWithMetadata<METADATA>, CTX>;
 
 export type APIRouter<API extends APIEndpointDefinitions, CTX> = {
   endpoint<K extends keyof API>(endpoint: K): APIRoute<API[K], CTX, CTX>;

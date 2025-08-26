@@ -185,7 +185,7 @@ describe('Given the simple login/logout API Client and definition', async () => 
             "path": [
               "email",
             ],
-            "pattern": "/^(?!\\\\.)(?!.*\\\\.\\\\.)([A-Za-z0-9_'+\\\\-\\\\.]*)[A-Za-z0-9_+-]@([A-Za-z0-9][A-Za-z0-9\\\\-]*\\\\.)+[A-Za-z]{2,}$/",
+            "pattern": "/^(?!\\.)(?!.*\\.\\.)([A-Za-z0-9_'+\\-\\.]*)[A-Za-z0-9_+-]@([A-Za-z0-9][A-Za-z0-9\\-]*\\.)+[A-Za-z]{2,}$/",
           },
         ]
       `);
@@ -295,14 +295,14 @@ describe('Given the simple login/logout API Client and definition', async () => 
       expect((err as Error).message).toMatchInlineSnapshot(`
         "request-validation-formatted: [
           {
-            \\"origin\\": \\"string\\",
-            \\"code\\": \\"invalid_format\\",
-            \\"format\\": \\"email\\",
-            \\"pattern\\": \\"/^(?!\\\\\\\\.)(?!.*\\\\\\\\.\\\\\\\\.)([A-Za-z0-9_'+\\\\\\\\-\\\\\\\\.]*)[A-Za-z0-9_+-]@([A-Za-z0-9][A-Za-z0-9\\\\\\\\-]*\\\\\\\\.)+[A-Za-z]{2,}$/\\",
-            \\"path\\": [
-              \\"email\\"
+            "origin": "string",
+            "code": "invalid_format",
+            "format": "email",
+            "pattern": "/^(?!\\\\.)(?!.*\\\\.\\\\.)([A-Za-z0-9_'+\\\\-\\\\.]*)[A-Za-z0-9_+-]@([A-Za-z0-9][A-Za-z0-9\\\\-]*\\\\.)+[A-Za-z]{2,}$/",
+            "path": [
+              "email"
             ],
-            \\"message\\": \\"Invalid email address\\"
+            "message": "Invalid email address"
           }
         ]"
       `);
@@ -342,10 +342,10 @@ describe('Given the simple login/logout API Client and definition', async () => 
       expect((err as Error).message).toMatchInlineSnapshot(`
         "response-validation-formatted: [
           {
-            \\"expected\\": \\"object\\",
-            \\"code\\": \\"invalid_type\\",
-            \\"path\\": [],
-            \\"message\\": \\"Invalid input: expected object, received undefined\\"
+            "expected": "object",
+            "code": "invalid_type",
+            "path": [],
+            "message": "Invalid input: expected object, received undefined"
           }
         ]"
       `);
