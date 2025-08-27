@@ -1,7 +1,7 @@
 {
   "name": "@unruly-software/api-server-express",
   "packageManager": "yarn@3.5.0",
-  "version": "0.0.0",
+  "version": "1.0.0",
   "license": "MIT",
   "type": "module",
   "sideEffects": false,
@@ -13,8 +13,8 @@
   },
   "peerDependencies": {
     "@types/express": "^5.0.0",
-    "@unruly-software/api-client": "^0.0.0",
-    "@unruly-software/api-server": "^0.0.0",
+    "@unruly-software/api-client": "^1.0.0",
+    "@unruly-software/api-server": "^1.0.0",
     "express": "^5.0.0"
   },
   "devDependencies": {

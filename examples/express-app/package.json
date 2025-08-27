@@ -1,7 +1,7 @@
 {
   "name": "@unruly-software/api-example-express-server",
   "packageManager": "yarn@3.5.0",
-  "version": "0.0.0",
+  "version": "0.1.0",
   "license": "MIT",
   "type": "module",
   "sideEffects": false,
