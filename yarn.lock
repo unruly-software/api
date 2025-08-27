@@ -2430,7 +2430,7 @@ __metadata:
     zod: ^4.0.0
   peerDependencies:
     "@tanstack/react-query": ^5.0.0
-    "@unruly-software/api-client": ^0.0.0
+    "@unruly-software/api-client": ^1.0.0
   languageName: unknown
   linkType: soft
 
@@ -2449,8 +2449,8 @@ __metadata:
     zod: ^4.0.0
   peerDependencies:
     "@types/express": ^5.0.0
-    "@unruly-software/api-client": ^0.0.0
-    "@unruly-software/api-server": ^0.0.0
+    "@unruly-software/api-client": ^1.0.0
+    "@unruly-software/api-server": ^1.0.0
     express: ^5.0.0
   languageName: unknown
   linkType: soft
@@ -2466,7 +2466,7 @@ __metadata:
     vitest: 3.2.4
     zod: ^4.0.0
   peerDependencies:
-    "@unruly-software/api-client": ^0.0.0
+    "@unruly-software/api-client": ^1.0.0
   languageName: unknown
   linkType: soft
 

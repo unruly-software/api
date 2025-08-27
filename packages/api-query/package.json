@@ -19,10 +19,10 @@
     "@tanstack/react-query": "^5.85.5",
     "@vitest/coverage-istanbul": "3.2.4",
     "microbundle": "0.15.1",
+    "react": "^19.1.1",
     "typescript": "5.0.4",
     "vitest": "3.2.4",
-    "zod": "^4.0.0",
-    "react": "^19.1.1"
+    "zod": "^4.0.0"
   },
   "amdName": "api-client",
   "main": "dist/api-client.js",
