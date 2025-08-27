@@ -7,7 +7,14 @@
     }
   ],
   "commit": false,
-  "fixed": [["@unruly-software/api-client", "@unruly-software/api-server"]],
+  "fixed": [
+    [
+      "@unruly-software/api-client",
+      "@unruly-software/api-server",
+      "@unruly-software/api-server-express",
+      "@unruly-software/api-query"
+    ]
+  ],
   "linked": [],
   "access": "public",
   "baseBranch": "master",
