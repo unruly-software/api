@@ -2208,6 +2208,24 @@ __metadata:
   languageName: node
   linkType: hard
 
+"@tanstack/query-core@npm:5.85.5":
+  version: 5.85.5
+  resolution: "@tanstack/query-core@npm:5.85.5"
+  checksum: 2bd2b028fcdd5a5608ea4ec3459fea27d72f83d18c586e9dc109869d3f534bbc01430251027a0b2adaf9ab324e63c17d782cc91dc50ba1910f43feec932f5c1c
+  languageName: node
+  linkType: hard
+
+"@tanstack/react-query@npm:^5.85.5":
+  version: 5.85.5
+  resolution: "@tanstack/react-query@npm:5.85.5"
+  dependencies:
+    "@tanstack/query-core": 5.85.5
+  peerDependencies:
+    react: ^18 || ^19
+  checksum: 02453c002288aade0e8222ae7e430d72e7e7d00bb5e163fcd52e788012b5c45f68b6f7fca470bd90c7ab80e8eda306251990164a386010dc19c54b3c0ea62b12
+  languageName: node
+  linkType: hard
+
 "@trysound/sax@npm:0.2.0":
   version: 0.2.0
   resolution: "@trysound/sax@npm:0.2.0"
@@ -2396,6 +2414,23 @@ __metadata:
     vite-node: ^3.2.4
     vitest: 3.2.4
     zod: ^4.0.0
+  languageName: unknown
+  linkType: soft
+
+"@unruly-software/api-query@workspace:packages/api-query":
+  version: 0.0.0-use.local
+  resolution: "@unruly-software/api-query@workspace:packages/api-query"
+  dependencies:
+    "@tanstack/react-query": ^5.85.5
+    "@vitest/coverage-istanbul": 3.2.4
+    microbundle: 0.15.1
+    react: ^19.1.1
+    typescript: 5.0.4
+    vitest: 3.2.4
+    zod: ^4.0.0
+  peerDependencies:
+    "@tanstack/react-query": ^5.0.0
+    "@unruly-software/api-client": ^0.0.0
   languageName: unknown
   linkType: soft
 
@@ -6514,6 +6549,13 @@ __metadata:
     iconv-lite: 0.6.3
     unpipe: 1.0.0
   checksum: 25b7cf7964183db322e819050d758a5abd0f22c51e9f37884ea44a9ed6855a1fb61f8caa8ec5b61d07e69f54db43dbbc08ad98ef84556696d6aa806be247af0e
+  languageName: node
+  linkType: hard
+
+"react@npm:^19.1.1":
+  version: 19.1.1
+  resolution: "react@npm:19.1.1"
+  checksum: f2f18fea5deac87b1167365bd5160bcba64d383c26a37afa905b714ca424f423ef97d8daf53f041ab9ac25a06357fafcf0b5d3b6b84c9d1eace0e621bfeae629
   languageName: node
   linkType: hard
 

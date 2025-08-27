@@ -26,6 +26,11 @@ export const makeTopic = <MESSAGE>() => {
         listener(message);
       });
     },
+    publishAsync: async (message: MESSAGE) => {
+      await Promise.all(
+        Array.from(listeners).map(async (listener) => listener(message)),
+      );
+    },
     subscribe: (listener: Listener) => {
       listeners.add(listener);
       return () => {

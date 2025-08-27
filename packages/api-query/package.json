@@ -1,0 +1,42 @@
+{
+  "name": "@unruly-software/api-query",
+  "packageManager": "yarn@3.5.0",
+  "version": "0.0.0",
+  "license": "MIT",
+  "type": "module",
+  "sideEffects": false,
+  "scripts": {
+    "build": "rm -rf ./dist && microbundle",
+    "build:watch": "microbundle dev",
+    "clean": "rm -rf ./dist",
+    "test": "vitest"
+  },
+  "peerDependencies": {
+    "@tanstack/react-query": "^5.0.0",
+    "@unruly-software/api-client": "^0.0.0"
+  },
+  "devDependencies": {
+    "@tanstack/react-query": "^5.85.5",
+    "@vitest/coverage-istanbul": "3.2.4",
+    "microbundle": "0.15.1",
+    "typescript": "5.0.4",
+    "vitest": "3.2.4",
+    "zod": "^4.0.0",
+    "react": "^19.1.1"
+  },
+  "amdName": "api-client",
+  "main": "dist/api-client.js",
+  "module": "dist/api-client.module.js",
+  "types": "dist/index.d.ts",
+  "umd:main": "dist/api-client.umd.js",
+  "source": "src/index.ts",
+  "exports": {
+    "./package.json": "./package.json",
+    ".": {
+      "types": "./dist/index.d.ts",
+      "umd": "./dist/api-client.umd.js",
+      "import": "./dist/api-client.mjs",
+      "require": "./dist/api-client.js"
+    }
+  }
+}

@@ -135,3 +135,19 @@ export const defineRouter = <API extends APIEndpointDefinitions, CTX>(input: {
     }),
   };
 };
+
+export const mergeImplementedRouters = <
+  R1_API extends APIEndpointDefinitions,
+  R1_CTX,
+  R2_API extends APIEndpointDefinitions,
+  R2_CTX,
+>(
+  r1: ImplementedAPIRouter<R1_API, R1_CTX>,
+  r2: ImplementedAPIRouter<R2_API, R2_CTX>,
+): ImplementedAPIRouter<R1_API & R2_API, R1_CTX & R2_CTX> => {
+  return defineRouter<R1_API & R2_API, R1_CTX & R2_CTX>({
+    definitions: { ...r1.definitions, ...r2.definitions },
+  }).implement({
+    endpoints: { ...r1.endpoints, ...r2.endpoints },
+  });
+};
