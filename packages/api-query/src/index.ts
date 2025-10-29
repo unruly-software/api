@@ -143,7 +143,9 @@ export const mountAPIQueryClient = <API extends APIEndpointDefinitions>(
       request,
     });
     if (keys?.length) {
-      queryClient.invalidateQueries({ queryKey: keys });
+      for (const key of keys) {
+        queryClient.invalidateQueries({ queryKey: key });
+      }
     }
   });
 
@@ -153,7 +155,9 @@ export const mountAPIQueryClient = <API extends APIEndpointDefinitions>(
       response,
     });
     if (keys?.length) {
-      queryClient.invalidateQueries({ queryKey: keys });
+      for (const key of keys) {
+        queryClient.invalidateQueries({ queryKey: key });
+      }
     }
     const cacheUpdates = getEndpointConfig(endpoint).updateCacheOnSuccess?.({
       request,
