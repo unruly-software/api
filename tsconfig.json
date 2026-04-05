@@ -4,6 +4,7 @@
   "compilerOptions": {
     "importHelpers": false,
     "skipLibCheck": true,
-    "strict": true
+    "strict": true,
+    "esModuleInterop": true
   }
 }

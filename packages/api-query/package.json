@@ -6,8 +6,8 @@
   "type": "module",
   "sideEffects": false,
   "scripts": {
-    "build": "rm -rf ./dist && microbundle",
-    "build:watch": "microbundle dev",
+    "build": "rm -rf ./dist && tsc --noEmit && microbundle",
+    "build:watch": "tsc --noEmit --watch",
     "clean": "rm -rf ./dist",
     "test": "vitest"
   },
@@ -17,9 +17,16 @@
   },
   "devDependencies": {
     "@tanstack/react-query": "^5.85.5",
+    "@testing-library/dom": "^10.4.0",
+    "@testing-library/react": "^16.3.2",
+    "@testing-library/react-hooks": "^8.0.1",
+    "@types/react": "^19.0.1",
+    "@types/react-dom": "^19.0.1",
     "@vitest/coverage-istanbul": "3.2.4",
+    "jsdom": "^25.0.1",
     "microbundle": "0.15.1",
-    "react": "^19.1.1",
+    "react": "^19.2.4",
+    "react-dom": "^19.1.1",
     "typescript": "5.0.4",
     "vitest": "3.2.4",
     "zod": "^4.0.0"

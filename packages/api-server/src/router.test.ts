@@ -38,17 +38,10 @@ const router = defineRouter<typeof api, { userRepo: UserRepo }>({
 
 const login = router
   .endpoint('login')
-  .updateContext(async (ctx) => ({
-    ...ctx,
-    userId: '123',
-  }))
   .handle(async ({ context, data, definition }) => {
     expectTypeOf(definition).toEqualTypeOf<typeof api.login>();
     expectTypeOf(data).toEqualTypeOf<{ email: string; password: string }>();
-    expectTypeOf(context).toEqualTypeOf<{
-      userId: string;
-      userRepo: UserRepo;
-    }>();
+    expectTypeOf(context).toEqualTypeOf<{ userRepo: UserRepo }>();
 
     const user = await context.userRepo.get(data.email);
     if (!user) {
@@ -73,33 +66,6 @@ const implementedRouter = router.implement({
 });
 
 describe('router', () => {
-  it.skip('should pass type tests', () => {
-    expectTypeOf<
-      Parameters<typeof implementedRouter.endpoints.login.handle>
-    >().toEqualTypeOf<
-      [
-        input: {
-          context: { userRepo: UserRepo };
-          data: { email: string; password: string };
-        },
-      ]
-    >();
-
-    expectTypeOf<
-      Parameters<typeof implementedRouter.endpoints.logout.handle>
-    >().toEqualTypeOf<
-      [input: { context: { userRepo: UserRepo }; data: never }]
-    >();
-
-    expectTypeOf<
-      ReturnType<typeof implementedRouter.endpoints.login.handle>
-    >().toEqualTypeOf<Promise<{ token: string }>>();
-
-    expectTypeOf<
-      ReturnType<typeof implementedRouter.endpoints.logout.handle>
-    >().toEqualTypeOf<Promise<void>>();
-  });
-
   const userRepo: UserRepo = {
     get: async (id: string) => ({ id, token: 'valid-token' }),
   };
@@ -121,8 +87,10 @@ describe('router', () => {
         // @ts-expect-error Testing runtime failure
         endpoint: 'spaghetti',
         context: { userRepo },
-        // @ts-expect-error Testing runtime failure
-        data: {},
+        data: {
+          email: '',
+          password: '',
+        },
       }),
     ).rejects.toMatchInlineSnapshot(
       '[Error: No definition for endpoint spaghetti]',

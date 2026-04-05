@@ -6,8 +6,8 @@
   "type": "module",
   "sideEffects": false,
   "scripts": {
-    "build": "rm -rf ./dist && microbundle",
-    "build:watch": "microbundle dev",
+    "build": "rm -rf ./dist && tsc --noEmit && microbundle",
+    "build:watch": "tsc --noEmit --watch",
     "clean": "rm -rf ./dist",
     "test": "vitest"
   },

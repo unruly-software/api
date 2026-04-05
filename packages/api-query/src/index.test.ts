@@ -16,12 +16,18 @@ const definition = {
     metadata: {},
     request: null,
     response: null,
+    apiQuery: {
+      queryKey: () => ['health'],
+    },
   }),
 
   getUser: api.defineEndpoint({
     metadata: {},
     request: z.object({ userId: z.number().transform((n) => n.toString()) }),
     response: UserSchema,
+    apiQuery: {
+      queryKey: (request: any) => ['user', request.userId],
+    },
   }),
 
   createUser: api.defineEndpoint({
@@ -38,12 +44,6 @@ const { useAPIQuery, useAPIMutation } = mountAPIQueryClient(
   {
     createUser: {
       invalidates: ({ response }) => [['user', response.userId]],
-    },
-    getUser: {
-      queryKey: ({ request }) => ['user', request?.userId],
-    },
-    health: {
-      queryKey: () => ['health'],
     },
   },
 );

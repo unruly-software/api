@@ -4,6 +4,12 @@
   "compilerOptions": {
     "importHelpers": false,
     "skipLibCheck": true,
-    "strict": true
+    "strict": true,
+    "esModuleInterop": true,
+    "allowSyntheticDefaultImports": true,
+    "module": "ESNext",
+    "target": "ES2020",
+    "moduleResolution": "node",
+    "jsx": "react-jsx"
   }
 }
