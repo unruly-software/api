@@ -1,0 +1,27 @@
+{
+  "name": "@unruly-software/api-example-fastify-server",
+  "packageManager": "yarn@3.5.0",
+  "version": "0.1.0",
+  "license": "MIT",
+  "type": "module",
+  "sideEffects": false,
+  "private": true,
+  "scripts": {
+    "start": "vite-node src/server.ts",
+    "build": "tsc --noEmit",
+    "build:watch": "tsc --noEmit --watch",
+    "test": "vitest"
+  },
+  "dependencies": {
+    "@types/node": "^22.10.1",
+    "@unruly-software/api-client": "workspace:*",
+    "@unruly-software/api-example-existing-api": "workspace:*",
+    "@unruly-software/api-server": "workspace:*",
+    "@vitest/coverage-istanbul": "3.2.4",
+    "fastify": "^5.1.0",
+    "typescript": "5.0.4",
+    "vite-node": "^3.2.4",
+    "vitest": "3.2.4",
+    "zod": "^4.0.0"
+  }
+}
