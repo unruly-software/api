@@ -17,21 +17,32 @@ function getPort(): Promise<number> {
 
 const createTestAPIClient = (baseUrl: string) => {
   return new APIClient(jsonPlaceholderAPI, {
-    resolver: async ({ endpoint, request, abortSignal }) => {
+    resolver: async ({ definition, request, abortSignal }) => {
+      const { method, path } = definition.metadata;
+
+      // Replace path parameters with actual values
+      let finalPath = path;
+      if (request && typeof request === 'object') {
+        // Replace {id}, {postId}, etc. with actual values
+        Object.entries(request).forEach(([key, value]) => {
+          finalPath = finalPath.replace(`{${key}}`, String(value));
+        });
+      }
+
       const fetchOptions: RequestInit = {
-        method: 'POST',
+        method: method,
         signal: abortSignal,
       };
 
-      // Only set content-type and body if we have request data
-      if (request !== undefined && request !== null) {
+      // For POST requests, add the request body
+      if (method === 'POST' && request !== undefined && request !== null) {
         fetchOptions.headers = {
           'Content-Type': 'application/json',
         };
         fetchOptions.body = JSON.stringify(request);
       }
 
-      const result = await fetch(`${baseUrl}/api/${endpoint}`, fetchOptions);
+      const result = await fetch(`${baseUrl}${finalPath}`, fetchOptions);
 
       if (!result.ok) {
         let error = new Error(
@@ -60,7 +71,7 @@ describe('fastify server with JSONPlaceholder API', async () => {
     try {
       const client = createTestAPIClient(`http://127.0.0.1:${port}`);
 
-      // Test getUsers endpoint
+      // Test getUsers endpoint - GET /users (no parameters)
       const users = await client.request('getUsers', { request: undefined });
       expect(users).toHaveLength(2);
       expect(users[0]).toMatchObject({
@@ -70,7 +81,7 @@ describe('fastify server with JSONPlaceholder API', async () => {
         email: 'sincere@april.biz',
       });
 
-      // Test getPosts endpoint
+      // Test getPosts endpoint - GET /posts (no parameters)
       const posts = await client.request('getPosts', { request: undefined });
       expect(posts).toHaveLength(3);
       expect(posts[0]).toMatchObject({
@@ -80,7 +91,7 @@ describe('fastify server with JSONPlaceholder API', async () => {
         body: expect.any(String),
       });
 
-      // Test getPost endpoint
+      // Test getPost endpoint - GET /posts/{id}
       const post = await client.request('getPost', {
         request: { id: 1 },
       });
@@ -96,7 +107,7 @@ describe('fastify server with JSONPlaceholder API', async () => {
         client.request('getPost', { request: { id: 999 } }),
       ).rejects.toThrow('Post with id 999 not found');
 
-      // Test createPost endpoint
+      // Test createPost endpoint - POST /posts
       const newPost = await client.request('createPost', {
         request: {
           title: 'Test Post',
@@ -122,7 +133,7 @@ describe('fastify server with JSONPlaceholder API', async () => {
         }),
       ).rejects.toThrow('User with id 999 not found');
 
-      // Test getComments endpoint
+      // Test getComments endpoint - GET /posts/{postId}/comments
       const comments = await client.request('getComments', {
         request: { postId: 1 },
       });

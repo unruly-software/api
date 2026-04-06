@@ -18,29 +18,76 @@ export const createFastifyApp = (): FastifyInstance => {
     commentRepo: InMemoryCommentRepo.getSingleton(),
   });
 
-  // Generic handler for all API endpoints
-  fastify.post('/api/:endpoint', async (request, reply) => {
-    try {
-      const endpointName = request.params as { endpoint: string };
-      const context = createContext();
+  // Register specific routes for each API endpoint
+  Object.entries(implementedRouter.definitions).forEach(
+    ([endpointName, definition]) => {
+      const { method, path } = definition.metadata;
 
-      // Dispatch the request to the appropriate endpoint handler
-      const result = await implementedRouter.dispatch({
-        endpoint:
-          endpointName.endpoint as keyof typeof implementedRouter.definitions,
-        data: request.body as any,
-        context,
-      });
+      // Convert JSONPlaceholder path format to Fastify path format
+      // e.g., "/posts/{id}" becomes "/posts/:id"
+      const fastifyPath = path.replace(/\{([^}]+)\}/g, ':$1');
 
-      return result;
-    } catch (error) {
-      fastify.log.error(error);
-      reply.status(500);
-      return {
-        error: error instanceof Error ? error.message : 'Internal server error',
+      const routeHandler = async (request: any, reply: any) => {
+        try {
+          const context = createContext();
+
+          // Merge path parameters with request body for the endpoint data
+          const pathParams = request.params || {};
+          let requestData: any;
+
+          if (method === 'GET') {
+            // For GET requests, the request data comes from path parameters
+            requestData =
+              Object.keys(pathParams).length > 0 ? pathParams : undefined;
+          } else {
+            // For POST requests, merge path parameters with request body
+            requestData = { ...pathParams, ...(request.body || {}) };
+          }
+
+          // Convert string parameters to numbers where needed
+          if (requestData) {
+            if (requestData.id) requestData.id = parseInt(requestData.id, 10);
+            if (requestData.postId)
+              requestData.postId = parseInt(requestData.postId, 10);
+            if (requestData.userId)
+              requestData.userId = parseInt(requestData.userId, 10);
+          }
+
+          // Dispatch the request to the appropriate endpoint handler
+          const result = await implementedRouter.dispatch({
+            endpoint:
+              endpointName as keyof typeof implementedRouter.definitions,
+            data: requestData,
+            context,
+          });
+
+          return result;
+        } catch (error) {
+          fastify.log.error(error);
+          reply.status(500);
+          return {
+            error:
+              error instanceof Error ? error.message : 'Internal server error',
+          };
+        }
       };
-    }
-  });
+
+      // Register the route with the appropriate HTTP method
+      if (method === 'GET') {
+        fastify.get(fastifyPath, routeHandler);
+      } else if (method === 'POST') {
+        fastify.post(fastifyPath, routeHandler);
+      } else if (method === 'PUT') {
+        fastify.put(fastifyPath, routeHandler);
+      } else if (method === 'DELETE') {
+        fastify.delete(fastifyPath, routeHandler);
+      }
+
+      fastify.log.info(
+        `Registered ${method} ${fastifyPath} for endpoint ${endpointName}`,
+      );
+    },
+  );
 
   // Health check endpoint
   fastify.get('/health', async () => {
