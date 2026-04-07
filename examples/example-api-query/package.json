@@ -6,7 +6,7 @@
   "private": true,
   "scripts": {
     "start": "vite dev",
-    "build": "tsc && vite build",
+    "build": "tsc --jsx react-jsx && vite build",
     "preview": "vite preview",
     "test": "vitest"
   },

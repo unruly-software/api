@@ -1,4 +1,4 @@
-import { queryClient, useAPIQuery } from '../App';
+import { useAPIQuery } from '../App';
 import { CreatePostForm } from './CreatePostForm';
 import { PostItem } from './PostItem';
 
@@ -47,14 +47,6 @@ export function PostsList() {
         <h2>Posts ({posts.length})</h2>
         <p>Recent posts from the JSONPlaceholder API</p>
       </div>
-
-      <button
-        type="button"
-        className="refresh-button"
-        onClick={() => queryClient.invalidateQueries([['getPosts']])}
-      >
-        Refresh posts
-      </button>
 
       <div className="posts-grid">
         {posts.map((post) => (
