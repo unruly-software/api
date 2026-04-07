@@ -64,7 +64,10 @@ function generatePathsFromAPI() {
     };
 
     if (pathSchema) {
-      operation.requestParams = { ...operation.requestParams, path: pathSchema };
+      operation.requestParams = {
+        ...operation.requestParams,
+        path: pathSchema,
+      };
     }
 
     if (remainingSchema) {
@@ -85,9 +88,11 @@ function generatePathsFromAPI() {
       }
     }
 
-    for (const { statusCode, description: responseDescription, schema } of getResponseEntries(
-      endpoint.response as z.ZodType,
-    )) {
+    for (const {
+      statusCode,
+      description: responseDescription,
+      schema,
+    } of getResponseEntries(endpoint.response as z.ZodType)) {
       operation.responses[statusCode] = {
         description: responseDescription,
         content: {
