@@ -79,7 +79,9 @@ const client = new APIClient(definition, {
 });
 
 describe('Given the simple login/logout API Client and definition', async () => {
-  it.skip('should pass basic type tests', () => {
+  it('should pass basic type tests', (t) => {
+    // Type test
+    t.skip();
     client.$failed.subscribe((message) => {
       if (message.endpoint === 'login') {
         expectTypeOf(message.request).toEqualTypeOf<{

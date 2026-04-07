@@ -1,0 +1,29 @@
+{
+  "name": "@unruly-software/api-example-query",
+  "version": "0.0.0",
+  "license": "MIT",
+  "type": "module",
+  "private": true,
+  "scripts": {
+    "start": "vite dev",
+    "build": "tsc --jsx react-jsx && vite build",
+    "preview": "vite preview",
+    "test": "vitest"
+  },
+  "dependencies": {
+    "@tanstack/react-query": "^5.85.5",
+    "@tanstack/react-query-devtools": "^5.96.2",
+    "@unruly-software/api-example-existing-api": "workspace:*",
+    "@unruly-software/api-query": "workspace:*",
+    "react": "^18.2.0",
+    "react-dom": "^18.2.0"
+  },
+  "devDependencies": {
+    "@types/react": "^18.0.0",
+    "@types/react-dom": "^18.0.0",
+    "@vitejs/plugin-react": "^4.0.0",
+    "typescript": "5.0.4",
+    "vite": "^4.0.0",
+    "vitest": "3.2.4"
+  }
+}

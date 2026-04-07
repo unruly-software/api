@@ -1,3 +1,4 @@
+/** biome-ignore-all lint/style/useShorthandFunctionType: Leave as interface */
 import {
   type QueryClient,
   type UseMutationOptions,
@@ -8,42 +9,70 @@ import {
   useQuery,
 } from '@tanstack/react-query';
 import type {
+  AllQueryKeysFor,
   AnyEndpointDefinition,
   APIClient,
   APIEndpointDefinitions,
+  QueryKeyForEndpoint,
+  QueryKeysFor,
   SchemaInferInput,
   SchemaInferOutput,
 } from '@unruly-software/api-client';
 
 type QueryKeyItem = string | number | boolean | object | null | undefined;
 
-export type QueryConfig<API extends APIEndpointDefinitions> = {
-  [K in keyof API]: {
-    queryKey?: (input: {
-      request: SchemaInferInput<API[K]['request']> | null;
-    }) => QueryKeyItem[];
+export interface QueryKeyResolver<API extends APIEndpointDefinitions> {
+  <T extends AllQueryKeysFor<API>>(keys: T): QueryKeysFor<API>;
+  forEndpoint: <K extends keyof API>(
+    endpoint: K,
+    request?: SchemaInferInput<API[K]['request']>,
+  ) => QueryKeyForEndpoint<OnlyString<K>, API[K]>;
+}
 
+export const makeQueryKeyResolver = <API extends APIEndpointDefinitions>(
+  definition: API,
+): QueryKeyResolver<API> => {
+  const result = (key: any) => {
+    return key;
+  };
+
+  result.forEndpoint = (endpoint: any, request: any) => {
+    const endpointDef = definition[endpoint];
+
+    if (endpointDef.apiQuery?.queryKey) {
+      return endpointDef.apiQuery.queryKey(request as any);
+    }
+
+    return [endpoint, request] as any;
+  };
+
+  return result as any;
+};
+
+export type ToReadonly<T> = T extends readonly any[] ? Readonly<T> : never;
+
+type OnlyString<T> = T extends string ? T : never;
+export type QueryConfig<
+  API extends APIEndpointDefinitions,
+  KEYS extends QueryKeyItem[] = QueryKeyItem[],
+> = {
+  [K in keyof API]?: {
     invalidates?: (input: {
       request: SchemaInferInput<API[K]['request']>;
       response: SchemaInferOutput<API[K]['response']>;
-    }) => QueryKeyItem[][];
+    }) => KEYS[];
 
     errorInvalidates?: (input: {
       request: SchemaInferInput<API[K]['request']>;
       error: Error;
-    }) => QueryKeyItem[][];
-
-    updateCacheOnSuccess?: (input: {
-      request: SchemaInferInput<API[K]['request']>;
-      response: SchemaInferOutput<API[K]['response']>;
-    }) => [[QueryKeyItem[], unknown]];
+    }) => KEYS[];
 
     queryOptions?: Omit<
       UseQueryOptions<
         SchemaInferOutput<API[K]['response']>,
         Error,
         SchemaInferOutput<API[K]['response']>,
-        unknown[]
+        QueryKeyForEndpoint<OnlyString<K>, API[K]>
       >,
       'queryFn' | 'queryKey'
     >;
@@ -63,13 +92,16 @@ export type QueryConfig<API extends APIEndpointDefinitions> = {
   };
 };
 
-export type APIQueryOptions<DEF extends AnyEndpointDefinition> = {
+export type APIQueryOptions<
+  DEF extends AnyEndpointDefinition,
+  KEYS extends QueryKeyItem[] = QueryKeyItem[],
+> = {
   overrides?: Omit<
     UseQueryOptions<
       SchemaInferOutput<DEF['response']>,
       Error,
       SchemaInferOutput<DEF['response']>,
-      unknown[]
+      KEYS
     >,
     'queryFn' | 'queryKey'
   >;
@@ -77,13 +109,14 @@ export type APIQueryOptions<DEF extends AnyEndpointDefinition> = {
   ? { data?: SchemaInferInput<DEF['request']> | null }
   : { data: SchemaInferInput<DEF['request']> | null });
 
-export type APIQueryHook<API extends APIEndpointDefinitions> = <
-  ENDPOINT extends keyof API,
->(
+export type APIQueryHook<
+  API extends APIEndpointDefinitions,
+  KEYS extends QueryKeyItem[],
+> = <ENDPOINT extends keyof API>(
   endpoint: ENDPOINT,
   ...rest: SchemaInferInput<API[ENDPOINT]['request']> extends never
-    ? [options?: APIQueryOptions<API[ENDPOINT]>]
-    : [options: APIQueryOptions<API[ENDPOINT]>]
+    ? [options?: APIQueryOptions<API[ENDPOINT], KEYS>]
+    : [options: APIQueryOptions<API[ENDPOINT], KEYS>]
 ) => UseQueryResult<SchemaInferOutput<API[ENDPOINT]['response']>, Error>;
 
 export type APIMutationOptions<DEF extends AnyEndpointDefinition> = {
@@ -116,26 +149,28 @@ export type APIMutationHook<API extends APIEndpointDefinitions> = <
     : SchemaInferInput<API[ENDPOINT]['request']>
 >;
 
-interface MountedQueries<API extends APIEndpointDefinitions> {
-  useAPIQuery: APIQueryHook<API>;
+interface MountedQueries<
+  API extends APIEndpointDefinitions,
+  KEYS extends QueryKeyItem[],
+> {
+  useAPIQuery: APIQueryHook<API, KEYS>;
   useAPIMutation: APIMutationHook<API>;
 }
 
-export const mountAPIQueryClient = <API extends APIEndpointDefinitions>(
+export const mountAPIQueryClient = <
+  API extends APIEndpointDefinitions,
+  KEYS extends QueryKeyItem[] = QueryKeyItem[],
+>(
   client: APIClient<API>,
   queryClient: QueryClient,
-  globalConfig: QueryConfig<API>,
-): MountedQueries<API> => {
+  globalConfig: QueryConfig<API, KEYS>,
+): MountedQueries<API, KEYS> => {
   const getEndpointConfig = <K extends keyof API>(endpoint: K) => {
     return globalConfig[endpoint] || {};
   };
 
-  const defaultQueryKey = <K extends keyof API>(
-    endpoint: K,
-    request: unknown,
-  ) => {
-    return [String(endpoint), request] as QueryKeyItem[];
-  };
+  // biome-ignore lint/complexity/useLiteralKeys: Private property access
+  const makeKey = makeQueryKeyResolver(client['definitions']);
 
   client.$failed.subscribe(({ endpoint, error, request }) => {
     const keys = getEndpointConfig(endpoint)?.errorInvalidates?.({
@@ -159,47 +194,33 @@ export const mountAPIQueryClient = <API extends APIEndpointDefinitions>(
         queryClient.invalidateQueries({ queryKey: key });
       }
     }
-    const cacheUpdates = getEndpointConfig(endpoint).updateCacheOnSuccess?.({
-      request,
-      response,
-    });
-    if (cacheUpdates?.length) {
-      for (const [key, value] of cacheUpdates) {
-        queryClient.setQueryData(key, value);
-      }
-    }
   });
 
-  const useAPIQuery: APIQueryHook<API> = (endpoint, ...rest) => {
+  const useAPIQuery: any = (endpoint: string, ...rest: any[]) => {
     const options = rest[0];
     const conf = getEndpointConfig(endpoint);
 
-    let queryKey: unknown[];
-    if (conf.queryKey) {
-      queryKey = conf.queryKey({
-        request: options?.data ?? null,
-      });
-    } else {
-      queryKey = defaultQueryKey(endpoint, options?.data ?? null);
-    }
-
     return useQuery({
-      queryKey,
+      queryKey: makeKey.forEndpoint(
+        endpoint,
+        options?.data ?? undefined,
+      ) as any,
       enabled:
         options?.data === null ? false : (options?.overrides?.enabled ?? true),
-      queryFn: async ({ signal }) => {
+      queryFn: async ({ signal }: { signal: any }) => {
         const response = await client.request(endpoint, {
           request: (options?.data ?? null) as any,
           abort: signal,
         });
         return response;
       },
-      ...getEndpointConfig(endpoint).queryOptions,
+      ...conf.queryOptions,
       ...options?.overrides,
-    });
+    } as any);
   };
 
   const useAPIMutation: APIMutationHook<API> = (endpoint, options) => {
+    const conf = getEndpointConfig(endpoint);
     return useMutation({
       mutationFn: async (input) => {
         const response = await client.request(endpoint, {
@@ -207,7 +228,7 @@ export const mountAPIQueryClient = <API extends APIEndpointDefinitions>(
         });
         return response;
       },
-      ...getEndpointConfig(endpoint).mutationOptions,
+      ...conf.mutationOptions,
       ...(options?.overrides as any),
     });
   };

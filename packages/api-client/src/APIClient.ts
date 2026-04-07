@@ -1,47 +1,28 @@
-import type { AnyEndpointDefinition, EndpointDefinition } from './endpoint';
+import type { EndpointDefinition } from './endpoint';
 import type {
   SchemaInferInput,
   SchemaInferOutput,
   SchemaValue,
 } from './schema';
 import { type ErrorMessage, makeTopic, type SuccessMessage } from './topic';
+import type {
+  APIClientConfig,
+  APIEndpointDefinitions,
+  ErrorFormatter,
+  RequestOptions,
+} from './types';
 
-export type APIResolver<T extends APIEndpointDefinitions> = (
-  outbound: {
-    [K in keyof T]: {
-      endpoint: K;
-      definition: T[K];
-      request: SchemaInferInput<T[K]['request']>;
-      abortSignal?: AbortSignal;
-    };
-  }[keyof T],
-) => Promise<unknown>;
-
-export type APIEndpointDefinitions = Record<string, AnyEndpointDefinition>;
 export type APIEndpointDefinitionWithMetadata<
   T extends Record<string, unknown>,
 > = Record<string, EndpointDefinition<SchemaValue, SchemaValue, T>>;
 
-export type APIClientConfig<T extends APIEndpointDefinitions> = {
-  resolver: APIResolver<T>;
-};
-
-export type RequestOptions<T extends AnyEndpointDefinition> = {
-  abort?: AbortSignal;
-} & (SchemaInferInput<T['request']> extends never
-  ? {
-      request?: SchemaInferInput<T['request']>;
-    }
-  : {
-      request: SchemaInferInput<T['request']>;
-    });
-
-export type ErrorFormatter = (
-  error: Error,
-  context: {
-    stage: 'request-validation' | 'resolver' | 'response-validation';
-  },
-) => Error;
+export type {
+  APIClientConfig,
+  APIEndpointDefinitions,
+  APIResolver,
+  ErrorFormatter,
+  RequestOptions,
+} from './types';
 
 export class APIClient<T extends APIEndpointDefinitions> {
   constructor(
@@ -58,31 +39,13 @@ export class APIClient<T extends APIEndpointDefinitions> {
     this.errorFormatter = formatter;
   }
 
-  private beforeRequest<K extends keyof T>(
-    endpoint: K,
-    options: RequestOptions<T[K]> | undefined,
-  ) {
-    try {
-      const definition = this.getEndpointDefinition(endpoint);
-      const abortSignal = options?.abort;
-      const unparsedRequestBody = options?.request;
-      const request = definition.request?.parse(
-        unparsedRequestBody,
-      ) as SchemaInferInput<AnyEndpointDefinition['request']>;
-      return { definition, abortSignal, request };
-    } catch (e) {
-      if (!this.errorFormatter) throw e;
-      throw this.errorFormatter(e as Error, { stage: 'request-validation' });
-    }
-  }
-
   async request<K extends keyof T>(
     endpoint: K,
-    ...rest: SchemaInferInput<T[K]['request']> extends never
-      ? [options?: RequestOptions<T[K]>]
-      : [options: RequestOptions<T[K]>]
+    ...rest: RequestOptions<T[K]> extends { request: any }
+      ? [options: RequestOptions<T[K]>]
+      : [options?: RequestOptions<T[K]>]
   ): Promise<SchemaInferOutput<T[K]['response']>> {
-    const { abortSignal, definition, request } = this.beforeRequest(
+    const { abortSignal, definition, request } = this.validateRequest(
       endpoint,
       rest[0],
     );
@@ -107,15 +70,7 @@ export class APIClient<T extends APIEndpointDefinitions> {
       throw error;
     }
 
-    let parsedResponse: SchemaInferOutput<T[K]['response']>;
-    try {
-      parsedResponse = definition.response?.parse(
-        resolverOutput,
-      ) as SchemaInferOutput<T[K]['response']>;
-    } catch (e) {
-      if (!this.errorFormatter) throw e;
-      throw this.errorFormatter(e as Error, { stage: 'response-validation' });
-    }
+    const parsedResponse = this.validateResponse(definition, resolverOutput);
 
     this.$succeeded.publish({
       endpoint: endpoint,
@@ -126,7 +81,41 @@ export class APIClient<T extends APIEndpointDefinitions> {
     return parsedResponse;
   }
 
-  private getEndpointDefinition<K extends keyof T>(endpoint: K) {
+  private validateRequest<K extends keyof T>(
+    endpoint: K,
+    options: RequestOptions<T[K]> | undefined,
+  ) {
+    try {
+      const definition = this.getEndpointDefinition(endpoint);
+      const abortSignal = options?.abort;
+      const unparsedRequestBody = options?.request;
+      const request = definition.request?.parse(
+        unparsedRequestBody,
+      ) as SchemaInferInput<T[K]['request']>;
+
+      return { definition, abortSignal, request };
+    } catch (e) {
+      if (!this.errorFormatter) throw e;
+      throw this.errorFormatter(e as Error, { stage: 'request-validation' });
+    }
+  }
+
+  private validateResponse<K extends keyof T>(
+    definition: T[K],
+    resolverOutput: unknown,
+  ): SchemaInferOutput<T[K]['response']> {
+    try {
+      const parsedResponse = definition.response?.parse(
+        resolverOutput,
+      ) as SchemaInferOutput<T[K]['response']>;
+      return parsedResponse;
+    } catch (e) {
+      if (!this.errorFormatter) throw e;
+      throw this.errorFormatter(e as Error, { stage: 'response-validation' });
+    }
+  }
+
+  getEndpointDefinition<K extends keyof T>(endpoint: K): T[K] {
     const endpointDefinition = this.definitions[endpoint];
     if (!endpointDefinition) {
       throw new Error(`Endpoint ${String(endpoint)} not found`);

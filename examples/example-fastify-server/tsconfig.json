@@ -5,7 +5,6 @@
     "importHelpers": false,
     "skipLibCheck": true,
     "strict": true,
-    "esModuleInterop": true,
-    "jsx": "react-jsx"
+    "esModuleInterop": true
   }
 }

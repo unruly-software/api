@@ -1,0 +1,23 @@
+{
+  "name": "@unruly-software/api-example-existing-api",
+  "version": "0.0.0",
+  "license": "MIT",
+  "type": "module",
+  "private": true,
+  "main": "./src/index.ts",
+  "exports": {
+    ".": "./src/index.ts"
+  },
+  "scripts": {
+    "test": "vitest",
+    "test:run": "vitest run"
+  },
+  "dependencies": {
+    "@unruly-software/api-client": "workspace:*"
+  },
+  "devDependencies": {
+    "typescript": "5.0.4",
+    "vitest": "3.2.4",
+    "zod": "^4.0.0"
+  }
+}

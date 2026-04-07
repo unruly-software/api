@@ -16,7 +16,7 @@ export type ImplementedAPIRouter<API extends APIEndpointDefinitions, CTX> = {
 
   definitions: API;
   endpoints: {
-    [K in keyof API]: FinalizedAPIRoute<API[K], any, CTX>;
+    [K in keyof API]: FinalizedAPIRoute<API[K], CTX>;
   };
 };
 
@@ -26,11 +26,11 @@ export type ImplementedAPIRouterWithMetadata<
 > = ImplementedAPIRouter<APIEndpointDefinitionWithMetadata<METADATA>, CTX>;
 
 export type APIRouter<API extends APIEndpointDefinitions, CTX> = {
-  endpoint<K extends keyof API>(endpoint: K): APIRoute<API[K], CTX, CTX>;
+  endpoint<K extends keyof API>(endpoint: K): APIRoute<API[K], CTX>;
 
   implement: (args: {
     endpoints: {
-      [K in keyof API]: FinalizedAPIRoute<API[K], any, CTX>;
+      [K in keyof API]: FinalizedAPIRoute<API[K], CTX>;
     };
   }) => ImplementedAPIRouter<API, CTX>;
 };
@@ -38,27 +38,23 @@ export type APIRouter<API extends APIEndpointDefinitions, CTX> = {
 export type SchemaServerResponse<S extends SchemaValue> =
   SchemaInferInput<S> extends never ? void : SchemaInferInput<S>;
 
-export type APIRoute<DEF extends AnyEndpointDefinition, CTX, INIT_CTX> = {
+export type APIRoute<DEF extends AnyEndpointDefinition, CTX> = {
   handle: (
     handler: (input: {
       data: SchemaInferOutput<DEF['request']>;
       definition: DEF;
       context: CTX;
     }) => Promise<SchemaServerResponse<DEF['response']>>,
-  ) => FinalizedAPIRoute<DEF, CTX, INIT_CTX>;
-
-  updateContext: <NEW_CTX>(
-    updater: (context: CTX) => Promise<NEW_CTX>,
-  ) => APIRoute<DEF, NEW_CTX, INIT_CTX>;
+  ) => FinalizedAPIRoute<DEF, CTX>;
 };
 
-type FinalizedAPIRoute<DEF extends AnyEndpointDefinition, CTX, INIT_CTX> = {
+type FinalizedAPIRoute<DEF extends AnyEndpointDefinition, CTX> = {
   handle: (input: {
     data: SchemaInferOutput<DEF['request']>;
-    context: INIT_CTX;
+    context: CTX;
   }) => Promise<SchemaServerResponse<DEF['response']>>;
 
-  /** Skip middleware, directly invoke the function */
+  /** Direct handler invocation */
   handleDirect: (input: {
     data: SchemaInferOutput<DEF['request']>;
     context: CTX;
@@ -78,16 +74,15 @@ export const defineRouter = <API extends APIEndpointDefinitions, CTX>(input: {
     return def;
   };
 
-  const makeEndpoint = <K extends keyof API, CTX, INIT_CTX>(
+  const makeEndpoint = <K extends keyof API>(
     endpoint: K,
-    makeContext: (initial: INIT_CTX) => Promise<CTX>,
-  ): APIRoute<API[K], CTX, INIT_CTX> => {
+  ): APIRoute<API[K], CTX> => {
     return {
       handle: (handler) => {
         return {
           handle: async ({ context, data }) => {
             return handler({
-              context: await makeContext(context),
+              context,
               data,
               definition: getDefinition(endpoint),
             });
@@ -101,16 +96,11 @@ export const defineRouter = <API extends APIEndpointDefinitions, CTX>(input: {
           },
         };
       },
-      updateContext: (updater) => {
-        return makeEndpoint(endpoint, async (initial) =>
-          updater(await makeContext(initial)),
-        );
-      },
     };
   };
 
   return {
-    endpoint: (endpoint) => makeEndpoint(endpoint, async (ctx) => ctx),
+    endpoint: makeEndpoint,
     implement: ({ endpoints }) => ({
       endpoints,
       definitions,
