@@ -1,22 +1,30 @@
 import { z } from 'zod';
 
+const numberString = z
+  .string()
+  .refine((val) => !Number.isNaN(Number(val)), {
+    message: 'Expected a string that can be converted to a number',
+  })
+  .transform((v) => Number(v))
+  .or(z.number());
+
 export const PostSchema = z.object({
-  userId: z.number(),
-  id: z.number(),
+  userId: numberString,
+  id: numberString,
   title: z.string(),
   body: z.string(),
 });
 
 export const CommentSchema = z.object({
-  postId: z.number(),
-  id: z.number(),
+  postId: numberString,
+  id: numberString,
   name: z.string(),
   email: z.string().email(),
   body: z.string(),
 });
 
 export const UserSchema = z.object({
-  id: z.number(),
+  id: numberString,
   name: z.string(),
   username: z.string(),
   email: z.string().email(),
@@ -40,11 +48,11 @@ export const UserSchema = z.object({
 });
 
 export const GetPostParamsSchema = z.object({
-  id: z.number(),
+  id: numberString,
 });
 
 export const GetCommentsParamsSchema = z.object({
-  postId: z.number(),
+  postId: numberString,
 });
 
 export type Post = z.infer<typeof PostSchema>;

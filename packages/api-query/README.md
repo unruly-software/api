@@ -137,6 +137,7 @@ function UserProfile({ userId }: { userId: number }) {
       <h1>{user.name}</h1>
       <p>{user.email}</p>
       <button
+      type="button"
         onClick={() => handleUpdate(user.name, user.email)}
         disabled={updateUserMutation.isPending}
       >
@@ -294,7 +295,7 @@ function EditUser({ user }: { user: User }) {
   });
 
   return (
-    <button onClick={() => updateUserMutation.mutate(updatedUser)}>
+    <button type="button" onClick={() => updateUserMutation.mutate(updatedUser)}>
       Save Changes
     </button>
   );
@@ -347,7 +348,7 @@ function UserList() {
 
   return (
     <div>
-      <button onClick={() => refetch()}>Refresh</button>
+      <button type="button" onClick={() => refetch()}>Refresh</button>
       {users?.map(user => <UserCard key={user.id} user={user} />)}
     </div>
   );
@@ -385,7 +386,7 @@ function UserData({ userId }: { userId: number }) {
     return (
       <ErrorBoundary>
         <p>Failed to load user: {error.message}</p>
-        <button onClick={() => refetch()}>
+        <button type="button" onClick={() => refetch()}>
           Retry ({failureCount} attempts)
         </button>
       </ErrorBoundary>

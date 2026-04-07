@@ -44,15 +44,6 @@ export const createFastifyApp = (): FastifyInstance => {
             requestData = { ...pathParams, ...(request.body || {}) };
           }
 
-          // Convert string parameters to numbers where needed
-          if (requestData) {
-            if (requestData.id) requestData.id = parseInt(requestData.id, 10);
-            if (requestData.postId)
-              requestData.postId = parseInt(requestData.postId, 10);
-            if (requestData.userId)
-              requestData.userId = parseInt(requestData.userId, 10);
-          }
-
           // Dispatch the request to the appropriate endpoint handler
           const result = await implementedRouter.dispatch({
             endpoint:
@@ -73,15 +64,11 @@ export const createFastifyApp = (): FastifyInstance => {
       };
 
       // Register the route with the appropriate HTTP method
-      if (method === 'GET') {
-        fastify.get(fastifyPath, routeHandler);
-      } else if (method === 'POST') {
-        fastify.post(fastifyPath, routeHandler);
-      } else if (method === 'PUT') {
-        fastify.put(fastifyPath, routeHandler);
-      } else if (method === 'DELETE') {
-        fastify.delete(fastifyPath, routeHandler);
-      }
+      fastify.route({
+        url: fastifyPath,
+        method,
+        handler: routeHandler,
+      });
 
       fastify.log.info(
         `Registered ${method} ${fastifyPath} for endpoint ${endpointName}`,

@@ -15,7 +15,7 @@ const { defineEndpoint } = defineAPI<{
 
 export const jsonPlaceholderAPI = {
   getPosts: defineEndpoint({
-    request: z.undefined(),
+    request: null,
     response: z.array(PostSchema),
     metadata: {
       method: 'GET',
@@ -55,7 +55,7 @@ export const jsonPlaceholderAPI = {
   }),
 
   getUsers: defineEndpoint({
-    request: z.undefined(),
+    request: null,
     response: z.array(UserSchema),
     metadata: {
       method: 'GET',
