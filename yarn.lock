@@ -3108,6 +3108,20 @@ __metadata:
   languageName: unknown
   linkType: soft
 
+"@unruly-software/api-example-todo-openapi@workspace:examples/todo-app-openapi":
+  version: 0.0.0-use.local
+  resolution: "@unruly-software/api-example-todo-openapi@workspace:examples/todo-app-openapi"
+  dependencies:
+    "@types/node": ^22.10.1
+    "@unruly-software/api-client": "workspace:*"
+    typescript: 5.0.4
+    vite-node: ^3.2.4
+    vitest: 3.2.4
+    zod: ^4.0.0
+    zod-openapi: ^5.4.6
+  languageName: unknown
+  linkType: soft
+
 "@unruly-software/api-query@workspace:*, @unruly-software/api-query@workspace:packages/api-query":
   version: 0.0.0-use.local
   resolution: "@unruly-software/api-query@workspace:packages/api-query"
@@ -9821,6 +9835,15 @@ __metadata:
     y18n: ^5.0.5
     yargs-parser: ^21.1.1
   checksum: 73b572e863aa4a8cbef323dd911d79d193b772defd5a51aab0aca2d446655216f5002c42c5306033968193bdbf892a7a4c110b0d77954a7fdf563e653967b56a
+  languageName: node
+  linkType: hard
+
+"zod-openapi@npm:^5.4.6":
+  version: 5.4.6
+  resolution: "zod-openapi@npm:5.4.6"
+  peerDependencies:
+    zod: ^3.25.74 || ^4.0.0
+  checksum: 54deefdb273636eedbfbbe4450eacabfb95956f0a80d0ed66964507c62d5548064fc49dc3b37b768ec466a24c3ae76506ec290436f75ebeb04c5fda74e98fcb3
   languageName: node
   linkType: hard
 

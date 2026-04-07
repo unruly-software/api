@@ -1,0 +1,26 @@
+{
+  "name": "@unruly-software/api-example-todo-openapi",
+  "version": "0.0.0",
+  "license": "MIT",
+  "type": "module",
+  "private": true,
+  "main": "./src/index.ts",
+  "exports": {
+    ".": "./src/index.ts"
+  },
+  "scripts": {
+    "build": "tsc --noEmit && vite-node src/create-docs.ts",
+    "build:watch": "tsc --noEmit --watch"
+  },
+  "dependencies": {
+    "@unruly-software/api-client": "workspace:*",
+    "zod-openapi": "^5.4.6"
+  },
+  "devDependencies": {
+    "@types/node": "^22.10.1",
+    "typescript": "5.0.4",
+    "vite-node": "^3.2.4",
+    "vitest": "3.2.4",
+    "zod": "^4.0.0"
+  }
+}

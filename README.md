@@ -50,6 +50,125 @@ This monorepo contains four core packages that work together:
 | **[@unruly-software/api-query](./packages/api-query)** | React Query hooks and cache management | [![NPM](https://img.shields.io/npm/v/@unruly-software/api-query?style=flat&colorA=18181B&colorB=28CF8D)](https://www.npmjs.com/package/@unruly-software/api-query) |
 | **[@unruly-software/api-server-express](./packages/api-server-express)** (Experimental) | Express.js adapter and middleware | [![NPM](https://img.shields.io/npm/v/@unruly-software/api-server-express?style=flat&colorA=18181B&colorB=28CF8D)](https://www.npmjs.com/package/@unruly-software/api-server-express) |
 
+## How It Compares
+
+The @unruly-software API framework takes a unique approach to type-safe APIs
+with a **"define once, use anywhere"** philosophy. Unlike alternatives that
+lock you into specific protocols or require code generation, this framework
+gives you maximum flexibility while maintaining full type safety.
+
+In the same way that React Query supports anything that returns a `Promise<T>`.
+@unruly-software/api-* packages leave the implementation and customization of
+transport layers, request and error handling to you without locking you into a
+specific protocol or framework. Whether you're building a REST API, a WebSocket
+service, or even an in-memory API for testing, you can use the same API
+definitions and enjoy end-to-end type safety with Zod validation.
+
+### Key Advantages
+
+🔧 **Transport Agnostic** - Use HTTP, WebSocket, IPC, or any custom transport layer with the same API definitions
+
+🎯 **Define Once, Use Anywhere** - Single schema definitions work seamlessly across client, server, and any communication protocol
+
+⚡ **Full Zod Power** - Complete access to all Zod features including transforms, custom data types, classes, and complex validation logic on both frontend and backend
+
+🚀 **No Code Generation** - Zero build steps, no generated files, just pure TypeScript inference
+
+🔌 **Existing API Integration** - Easily wrap and type existing REST APIs without modification
+
+🌐 **Public API Ready** - Generate REST endpoints for external consumers while keeping internal type safety
+
+| Feature | @unruly-software | tRPC | GraphQL | REST + OpenAPI | gRPC |
+| ---------|------------------|------|---------|----------------|------|
+| **Transport Flexibility** | ✅ Any (HTTP, WS, IPC, or none!) | ❌ HTTP only | ✅ Any (mostly HTTP) | ❌ HTTP only | ❌ HTTP/2 only |
+| **Define Once, Use Anywhere** | ✅ Single definition | ❌ Needs server code access | ✅ Schema + resolvers | ✅ Schema + implementation | ✅ Proto + implementation |
+| **Custom Type Support** | ✅ All features + transforms | ✅ Basic schemas | ❌ Custom scalars only | ❌ Limited validation | ✅ Protocol buffers |
+| **Existing API Support** | ✅ Wrap any API | ❌ TypeScript only | ✅ Language agnostic | ✅ Language agnostic | ❌ gRPC services only |
+| **Code Generation** | ✅ None required | ✅ None required | ❌ Required | ❌ Required | ❌ Required |
+| **Existing API Integration** | ✅ Wrap any API | ❌ Full rewrite needed | ❌ Full rewrite needed | ✅ Document existing | ❌ Full rewrite needed |
+| **Framework Coupling** | ✅ Framework agnostic | ✅ Framework agnostic | ✅ Framework agnostic | ✅ Framework agnostic | ✅ Framework agnostic |
+| **Bundle Size** | ✅ Minimal | ✅ Small | ❌ Large ecosystem | ✅ Minimal | ✅ Small |
+| **Learning Curve** | ✅ Low (if you know Zod) | ✅ Low | ❌ High | ✅ Low | ❌ High |
+| **Frontend Schema Reuse** | ✅ Forms, validation, transforms | ❌ Server-only types | ❌ Requires separate validation | ❌ Requires separate validation | ❌ Backend-only protocols |
+
+### vs tRPC
+
+**Choose @unruly-software when:**
+- You want transport flexibility (WebSocket, UDP, etc.)
+- Building public APIs for external consumers and want to provide them with a client
+- Working with existing REST APIs you can't rewrite
+- Need advanced Zod features like transforms and custom types without redefining those types in each consumer
+- Want to re-use your schemas to build forms
+
+**Choose tRPC when:**
+- Don't mind coupling your API definitions to your server codebase
+- Building pure TypeScript monorepos with React/Next.js
+- Don't need public API support
+- Want the largest TypeScript RPC ecosystem
+- Primarily using HTTP transport
+- Don't need custom value objects or data transforms/validation logic in the client
+- Prefer a more opinionated framework with built-in conventions
+
+### vs GraphQL
+
+**Choose @unruly-software when:**
+- Want simpler setup without query complexity
+- Don't need client-driven queries or complex data graphs
+- Prefer TypeScript-first development
+- Need type safety without learning GraphQL SDL
+- Building REST-compatible APIs
+- Want to avoid the GraphQL ecosystem overhead
+- Want to avoid configuring complex build tools for GraphQL code generation
+
+**Choose GraphQL when:**
+- Building complex data graphs with relationships is your jam
+- Need flexible client-driven queries to avoid overfetching
+- Have multiple client platforms with different data needs
+- Want a mature ecosystem with extensive tooling
+- You like debugging N+1 queries in production
+
+### vs REST + OpenAPI/Swagger
+
+**Choose @unruly-software when:**
+- Want end-to-end type safety without code generation
+- Need shared validation logic between client and server
+- Prefer defining schemas in TypeScript with Zod
+- Want React Query integration out of the box
+
+**Choose REST + OpenAPI when:**
+- Building pure REST APIs for external consumption
+- Need maximum compatibility with existing tooling
+- Want language-agnostic API documentation
+- Working in polyglot environments
+
+### vs gRPC
+
+**Choose @unruly-software when:**
+- Need transport flexibility beyond HTTP/2
+- Want TypeScript-first development without Protocol Buffers
+- Need to integrate with existing REST APIs
+- Prefer Zod validation over protobuf schemas
+- Building web applications (better browser support)
+
+**Choose gRPC when:**
+- Need maximum performance for microservice communication
+- Building polyglot systems with multiple languages
+- Want built-in streaming capabilities
+- Have complex service-to-service communication requirements
+- Working in backend-only environments
+
+## Use Cases
+
+### Perfect For
+
+- **Full-stack TypeScript applications** that need type safety across boundaries
+- **Microservices** that communicate via different protocols (HTTP, message queues, etc.)
+- **API wrappers** for existing services that need type safety
+- **Multi-transport applications** (HTTP REST + WebSocket real-time + background jobs)
+- **Teams migrating** from untyped APIs to type-safe alternatives
+- **Libraries and SDKs** that need flexible transport layers
+
+
 ## Quick Start
 
 ### 1. Define Your API
@@ -210,133 +329,9 @@ This repository includes several examples that demonstrate different use cases a
 | **[React Query Integration](./examples/example-api-query)** | Modern React app with API client | • React Query hooks (`useAPIQuery`, `useAPIMutation`)<br/>• Automatic cache invalidation<br/>• Loading states and error handling<br/>• Real-time UI with JSONPlaceholder API |
 | **[Fastify Server](./examples/example-fastify-server)** | Type-safe Fastify server implementation | • API server with in-memory repositories<br/>• Complete CRUD operations<br/>• Fastify framework integration |
 | **[Express.js Server](./examples/express-app)** (Experimental) | Express.js server with API router | • Express middleware integration<br/>• Context management<br/>• User management endpoints<br/> |
+| **[OpenAPI Generation](./examples/todo-app-openapi)** ([Generated OpenAPI Schema](./examples/todo-app-openapi/docs/openapi.html)) | Generate an OpenAPI 3.1 spec from API definitions | • Path params and request bodies derived from the request schema<br/>• Per-status response schemas via Zod `.meta({ statusCode })`<br/>• Redoc HTML output via [`zod-openapi`](https://www.npmjs.com/package/zod-openapi) |
 
 Each example includes its own README with detailed setup instructions, architectural explanations, and usage examples. They range from simple client implementations to complete full-stack applications, demonstrating the flexibility and power of the framework across different use cases.
-
-## How It Compares
-
-The @unruly-software API framework takes a unique approach to type-safe APIs
-with a **"define once, use anywhere"** philosophy. Unlike alternatives that
-lock you into specific protocols or require code generation, this framework
-gives you maximum flexibility while maintaining full type safety.
-
-In the same way that React Query supports anything that returns a `Promise<T>`.
-@unruly-software/api-* packages leave the implementation and customization of
-transport layers, request and error handling to you without locking you into a
-specific protocol or framework. Whether you're building a REST API, a WebSocket
-service, or even an in-memory API for testing, you can use the same API
-definitions and enjoy end-to-end type safety with Zod validation.
-
-### Key Advantages
-
-🔧 **Transport Agnostic** - Use HTTP, WebSocket, IPC, or any custom transport layer with the same API definitions
-
-🎯 **Define Once, Use Anywhere** - Single schema definitions work seamlessly across client, server, and any communication protocol
-
-⚡ **Full Zod Power** - Complete access to all Zod features including transforms, custom data types, classes, and complex validation logic on both frontend and backend
-
-🚀 **No Code Generation** - Zero build steps, no generated files, just pure TypeScript inference
-
-🔌 **Existing API Integration** - Easily wrap and type existing REST APIs without modification
-
-🌐 **Public API Ready** - Generate REST endpoints for external consumers while keeping internal type safety
-
-| Feature | @unruly-software | tRPC | GraphQL | REST + OpenAPI | gRPC |
-| ---------|------------------|------|---------|----------------|------|
-| **Transport Flexibility** | ✅ Any (HTTP, WS, IPC, or none!) | ❌ HTTP only | ✅ Any (mostly HTTP) | ❌ HTTP only | ❌ HTTP/2 only |
-| **Define Once, Use Anywhere** | ✅ Single definition | ❌ Needs server code access | ✅ Schema + resolvers | ✅ Schema + implementation | ✅ Proto + implementation |
-| **Custom Type Support** | ✅ All features + transforms | ✅ Basic schemas | ❌ Custom scalars only | ❌ Limited validation | ✅ Protocol buffers |
-| **Existing API Support** | ✅ Wrap any API | ❌ TypeScript only | ✅ Language agnostic | ✅ Language agnostic | ❌ gRPC services only |
-| **Code Generation** | ✅ None required | ✅ None required | ❌ Required | ❌ Required | ❌ Required |
-| **Existing API Integration** | ✅ Wrap any API | ❌ Full rewrite needed | ❌ Full rewrite needed | ✅ Document existing | ❌ Full rewrite needed |
-| **Framework Coupling** | ✅ Framework agnostic | ✅ Framework agnostic | ✅ Framework agnostic | ✅ Framework agnostic | ✅ Framework agnostic |
-| **Bundle Size** | ✅ Minimal | ✅ Small | ❌ Large ecosystem | ✅ Minimal | ✅ Small |
-| **Learning Curve** | ✅ Low (if you know Zod) | ✅ Low | ❌ High | ✅ Low | ❌ High |
-| **Frontend Schema Reuse** | ✅ Forms, validation, transforms | ❌ Server-only types | ❌ Requires separate validation | ❌ Requires separate validation | ❌ Backend-only protocols |
-
-### vs tRPC
-
-**Choose @unruly-software when:**
-- You want transport flexibility (WebSocket, UDP, etc.)
-- Building public APIs for external consumers and want to provide them with a client
-- Working with existing REST APIs you can't rewrite
-- Need advanced Zod features like transforms and custom types without redefining those types in each consumer
-- Want to re-use your schemas to build forms
-
-**Choose tRPC when:**
-- Don't mind coupling your API definitions to your server codebase
-- Building pure TypeScript monorepos with React/Next.js
-- Don't need public API support
-- Want the largest TypeScript RPC ecosystem
-- Primarily using HTTP transport
-- Don't need custom value objects or data transforms/validation logic in the client
-- Prefer a more opinionated framework with built-in conventions
-
-### vs GraphQL
-
-**Choose @unruly-software when:**
-- Want simpler setup without query complexity
-- Don't need client-driven queries or complex data graphs
-- Prefer TypeScript-first development
-- Need type safety without learning GraphQL SDL
-- Building REST-compatible APIs
-- Want to avoid the GraphQL ecosystem overhead
-- Want to avoid configuring complex build tools for GraphQL code generation
-
-**Choose GraphQL when:**
-- Building complex data graphs with relationships is your jam
-- Need flexible client-driven queries to avoid overfetching
-- Have multiple client platforms with different data needs
-- Want a mature ecosystem with extensive tooling
-- You like debugging N+1 queries in production
-
-### vs REST + OpenAPI/Swagger
-
-**Choose @unruly-software when:**
-- Want end-to-end type safety without code generation
-- Need shared validation logic between client and server
-- Prefer defining schemas in TypeScript with Zod
-- Want React Query integration out of the box
-
-**Choose REST + OpenAPI when:**
-- Building pure REST APIs for external consumption
-- Need maximum compatibility with existing tooling
-- Want language-agnostic API documentation
-- Working in polyglot environments
-
-### vs gRPC
-
-**Choose @unruly-software when:**
-- Need transport flexibility beyond HTTP/2
-- Want TypeScript-first development without Protocol Buffers
-- Need to integrate with existing REST APIs
-- Prefer Zod validation over protobuf schemas
-- Building web applications (better browser support)
-
-**Choose gRPC when:**
-- Need maximum performance for microservice communication
-- Building polyglot systems with multiple languages
-- Want built-in streaming capabilities
-- Have complex service-to-service communication requirements
-- Working in backend-only environments
-
-## Use Cases
-
-### Perfect For
-
-- **Full-stack TypeScript applications** that need type safety across boundaries
-- **Microservices** that communicate via different protocols (HTTP, message queues, etc.)
-- **API wrappers** for existing services that need type safety
-- **Multi-transport applications** (HTTP REST + WebSocket real-time + background jobs)
-- **Teams migrating** from untyped APIs to type-safe alternatives
-- **Libraries and SDKs** that need flexible transport layers
-
-### Consider Alternatives When
-
-- Building GraphQL-native applications with complex data relationships
-- Working in purely non-TypeScript environments
-- Need the largest possible ecosystem (tRPC for TypeScript RPC)
-- Building simple CRUD APIs with no type safety requirements
 
 ## License
 

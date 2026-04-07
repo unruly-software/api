@@ -1,0 +1,830 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>TODO API Documentation</title>
+    <meta charset="utf-8"/>
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <style>
+      body {
+        margin: 0;
+        padding: 0;
+      }
+    </style>
+</head>
+<body>
+    <redoc></redoc>
+    <script src="https://cdn.jsdelivr.net/npm/redoc@latest/bundles/redoc.standalone.js"></script>
+    <script>
+      Redoc.init({
+  "openapi": "3.1.0",
+  "info": {
+    "title": "TODO API",
+    "version": "1.0.0",
+    "description": "A type-safe TODO API demonstrating automatic OpenAPI generation from API client definitions",
+    "contact": {
+      "name": "Unruly Software",
+      "url": "https://github.com/unruly-software"
+    },
+    "license": {
+      "name": "MIT",
+      "url": "https://opensource.org/licenses/MIT"
+    }
+  },
+  "servers": [
+    {
+      "url": "http://localhost:3000/api",
+      "description": "Development server"
+    },
+    {
+      "url": "https://api.example.com",
+      "description": "Production server"
+    }
+  ],
+  "tags": [
+    {
+      "name": "Todos",
+      "description": "Operations for managing todo items"
+    }
+  ],
+  "paths": {
+    "/todos": {
+      "get": {
+        "summary": "Get all todos",
+        "description": "Retrieve a list of todos with optional filtering",
+        "operationId": "getTodos",
+        "tags": [
+          "Todos"
+        ],
+        "parameters": [
+          {
+            "in": "query",
+            "name": "completed",
+            "schema": {
+              "description": "Filter todos by completion status",
+              "example": false,
+              "type": "boolean"
+            },
+            "description": "Filter todos by completion status"
+          },
+          {
+            "in": "query",
+            "name": "priority",
+            "schema": {
+              "description": "Filter todos by priority level",
+              "example": "high",
+              "type": "string",
+              "enum": [
+                "low",
+                "medium",
+                "high"
+              ]
+            },
+            "description": "Filter todos by priority level"
+          },
+          {
+            "in": "query",
+            "name": "limit",
+            "schema": {
+              "description": "Maximum number of todos to return",
+              "example": 10,
+              "type": "integer",
+              "minimum": 1,
+              "maximum": 9007199254740991
+            },
+            "description": "Maximum number of todos to return"
+          },
+          {
+            "in": "query",
+            "name": "offset",
+            "schema": {
+              "description": "Number of todos to skip",
+              "example": 0,
+              "type": "integer",
+              "minimum": 1,
+              "maximum": 9007199254740991
+            },
+            "description": "Number of todos to skip"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "List of todos",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "description": "List of todos",
+                  "statusCode": 200,
+                  "type": "object",
+                  "properties": {
+                    "todos": {
+                      "description": "Array of todo items",
+                      "type": "array",
+                      "items": {
+                        "description": "A todo item with all its properties",
+                        "type": "object",
+                        "properties": {
+                          "id": {
+                            "description": "Unique identifier for the todo item",
+                            "example": 1,
+                            "type": "integer",
+                            "minimum": 1,
+                            "maximum": 9007199254740991
+                          },
+                          "title": {
+                            "description": "The title of the todo item",
+                            "example": "Buy groceries",
+                            "type": "string"
+                          },
+                          "description": {
+                            "description": "Optional detailed description of the todo item",
+                            "example": "Buy milk, eggs, and bread from the grocery store",
+                            "type": "string"
+                          },
+                          "completed": {
+                            "description": "Whether the todo item has been completed",
+                            "example": false,
+                            "type": "boolean"
+                          },
+                          "priority": {
+                            "description": "Priority level of the todo item",
+                            "example": "medium",
+                            "type": "string",
+                            "enum": [
+                              "low",
+                              "medium",
+                              "high"
+                            ]
+                          },
+                          "dueDate": {
+                            "description": "ISO datetime string for when the todo is due",
+                            "example": "2024-12-31T23:59:59.000Z",
+                            "type": "string",
+                            "format": "date-time",
+                            "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))T(?:(?:[01]\\d|2[0-3]):[0-5]\\d(?::[0-5]\\d(?:\\.\\d+)?)?(?:Z))$"
+                          },
+                          "createdAt": {
+                            "description": "ISO datetime string for when the todo was created",
+                            "example": "2024-01-01T00:00:00.000Z",
+                            "type": "string",
+                            "format": "date-time",
+                            "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))T(?:(?:[01]\\d|2[0-3]):[0-5]\\d(?::[0-5]\\d(?:\\.\\d+)?)?(?:Z))$"
+                          },
+                          "updatedAt": {
+                            "description": "ISO datetime string for when the todo was last updated",
+                            "example": "2024-01-02T12:30:00.000Z",
+                            "type": "string",
+                            "format": "date-time",
+                            "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))T(?:(?:[01]\\d|2[0-3]):[0-5]\\d(?::[0-5]\\d(?:\\.\\d+)?)?(?:Z))$"
+                          }
+                        },
+                        "required": [
+                          "id",
+                          "title",
+                          "completed",
+                          "createdAt",
+                          "updatedAt"
+                        ],
+                        "additionalProperties": false
+                      }
+                    },
+                    "total": {
+                      "description": "Total number of todos matching the query",
+                      "example": 42,
+                      "type": "number"
+                    },
+                    "limit": {
+                      "description": "The limit used for this query",
+                      "example": 10,
+                      "type": "number"
+                    },
+                    "offset": {
+                      "description": "The offset used for this query",
+                      "example": 0,
+                      "type": "number"
+                    }
+                  },
+                  "required": [
+                    "todos",
+                    "total"
+                  ],
+                  "additionalProperties": false
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Invalid query parameters",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "description": "Invalid query parameters",
+                  "statusCode": 400,
+                  "type": "object",
+                  "properties": {
+                    "error": {
+                      "description": "Error message describing what went wrong",
+                      "example": "Todo item not found",
+                      "type": "string"
+                    },
+                    "code": {
+                      "description": "Optional error code for programmatic handling",
+                      "example": "TODO_NOT_FOUND",
+                      "type": "string"
+                    }
+                  },
+                  "required": [
+                    "error"
+                  ],
+                  "additionalProperties": false
+                }
+              }
+            }
+          }
+        }
+      },
+      "post": {
+        "summary": "Create a new todo",
+        "description": "Create a new todo item",
+        "operationId": "createTodo",
+        "tags": [
+          "Todos"
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "title": {
+                    "description": "The title of the todo item",
+                    "example": "Buy groceries",
+                    "type": "string",
+                    "minLength": 1
+                  },
+                  "description": {
+                    "description": "Optional detailed description of the todo item",
+                    "example": "Buy milk, eggs, and bread from the grocery store",
+                    "type": "string"
+                  },
+                  "priority": {
+                    "description": "Priority level of the todo item",
+                    "example": "medium",
+                    "type": "string",
+                    "enum": [
+                      "low",
+                      "medium",
+                      "high"
+                    ]
+                  },
+                  "dueDate": {
+                    "description": "ISO datetime string for when the todo is due",
+                    "example": "2024-12-31T23:59:59.000Z",
+                    "type": "string",
+                    "format": "date-time",
+                    "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))T(?:(?:[01]\\d|2[0-3]):[0-5]\\d(?::[0-5]\\d(?:\\.\\d+)?)?(?:Z))$"
+                  }
+                },
+                "required": [
+                  "title"
+                ]
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": "Todo created successfully",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "description": "Todo created successfully",
+                  "statusCode": 201,
+                  "type": "object",
+                  "properties": {
+                    "id": {
+                      "description": "Unique identifier for the todo item",
+                      "example": 1,
+                      "type": "integer",
+                      "minimum": 1,
+                      "maximum": 9007199254740991
+                    },
+                    "title": {
+                      "description": "The title of the todo item",
+                      "example": "Buy groceries",
+                      "type": "string"
+                    },
+                    "description": {
+                      "description": "Optional detailed description of the todo item",
+                      "example": "Buy milk, eggs, and bread from the grocery store",
+                      "type": "string"
+                    },
+                    "completed": {
+                      "description": "Whether the todo item has been completed",
+                      "example": false,
+                      "type": "boolean"
+                    },
+                    "priority": {
+                      "description": "Priority level of the todo item",
+                      "example": "medium",
+                      "type": "string",
+                      "enum": [
+                        "low",
+                        "medium",
+                        "high"
+                      ]
+                    },
+                    "dueDate": {
+                      "description": "ISO datetime string for when the todo is due",
+                      "example": "2024-12-31T23:59:59.000Z",
+                      "type": "string",
+                      "format": "date-time",
+                      "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))T(?:(?:[01]\\d|2[0-3]):[0-5]\\d(?::[0-5]\\d(?:\\.\\d+)?)?(?:Z))$"
+                    },
+                    "createdAt": {
+                      "description": "ISO datetime string for when the todo was created",
+                      "example": "2024-01-01T00:00:00.000Z",
+                      "type": "string",
+                      "format": "date-time",
+                      "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))T(?:(?:[01]\\d|2[0-3]):[0-5]\\d(?::[0-5]\\d(?:\\.\\d+)?)?(?:Z))$"
+                    },
+                    "updatedAt": {
+                      "description": "ISO datetime string for when the todo was last updated",
+                      "example": "2024-01-02T12:30:00.000Z",
+                      "type": "string",
+                      "format": "date-time",
+                      "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))T(?:(?:[01]\\d|2[0-3]):[0-5]\\d(?::[0-5]\\d(?:\\.\\d+)?)?(?:Z))$"
+                    }
+                  },
+                  "required": [
+                    "id",
+                    "title",
+                    "completed",
+                    "createdAt",
+                    "updatedAt"
+                  ],
+                  "additionalProperties": false
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Invalid request data",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "description": "Invalid request data",
+                  "statusCode": 400,
+                  "type": "object",
+                  "properties": {
+                    "error": {
+                      "description": "Error message describing what went wrong",
+                      "example": "Todo item not found",
+                      "type": "string"
+                    },
+                    "code": {
+                      "description": "Optional error code for programmatic handling",
+                      "example": "TODO_NOT_FOUND",
+                      "type": "string"
+                    }
+                  },
+                  "required": [
+                    "error"
+                  ],
+                  "additionalProperties": false
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/todos/{id}": {
+      "get": {
+        "summary": "Get a todo by ID",
+        "description": "Retrieve a specific todo item by its ID",
+        "operationId": "getTodo",
+        "tags": [
+          "Todos"
+        ],
+        "parameters": [
+          {
+            "in": "path",
+            "name": "id",
+            "schema": {
+              "description": "The unique identifier of the todo item",
+              "example": 1,
+              "type": "integer",
+              "minimum": 1,
+              "maximum": 9007199254740991
+            },
+            "required": true,
+            "description": "The unique identifier of the todo item"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Todo found",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "description": "Todo found",
+                  "statusCode": 200,
+                  "type": "object",
+                  "properties": {
+                    "id": {
+                      "description": "Unique identifier for the todo item",
+                      "example": 1,
+                      "type": "integer",
+                      "minimum": 1,
+                      "maximum": 9007199254740991
+                    },
+                    "title": {
+                      "description": "The title of the todo item",
+                      "example": "Buy groceries",
+                      "type": "string"
+                    },
+                    "description": {
+                      "description": "Optional detailed description of the todo item",
+                      "example": "Buy milk, eggs, and bread from the grocery store",
+                      "type": "string"
+                    },
+                    "completed": {
+                      "description": "Whether the todo item has been completed",
+                      "example": false,
+                      "type": "boolean"
+                    },
+                    "priority": {
+                      "description": "Priority level of the todo item",
+                      "example": "medium",
+                      "type": "string",
+                      "enum": [
+                        "low",
+                        "medium",
+                        "high"
+                      ]
+                    },
+                    "dueDate": {
+                      "description": "ISO datetime string for when the todo is due",
+                      "example": "2024-12-31T23:59:59.000Z",
+                      "type": "string",
+                      "format": "date-time",
+                      "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))T(?:(?:[01]\\d|2[0-3]):[0-5]\\d(?::[0-5]\\d(?:\\.\\d+)?)?(?:Z))$"
+                    },
+                    "createdAt": {
+                      "description": "ISO datetime string for when the todo was created",
+                      "example": "2024-01-01T00:00:00.000Z",
+                      "type": "string",
+                      "format": "date-time",
+                      "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))T(?:(?:[01]\\d|2[0-3]):[0-5]\\d(?::[0-5]\\d(?:\\.\\d+)?)?(?:Z))$"
+                    },
+                    "updatedAt": {
+                      "description": "ISO datetime string for when the todo was last updated",
+                      "example": "2024-01-02T12:30:00.000Z",
+                      "type": "string",
+                      "format": "date-time",
+                      "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))T(?:(?:[01]\\d|2[0-3]):[0-5]\\d(?::[0-5]\\d(?:\\.\\d+)?)?(?:Z))$"
+                    }
+                  },
+                  "required": [
+                    "id",
+                    "title",
+                    "completed",
+                    "createdAt",
+                    "updatedAt"
+                  ],
+                  "additionalProperties": false
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Todo not found",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "description": "Todo not found",
+                  "statusCode": 404,
+                  "type": "object",
+                  "properties": {
+                    "error": {
+                      "description": "Error message describing what went wrong",
+                      "example": "Todo item not found",
+                      "type": "string"
+                    },
+                    "code": {
+                      "description": "Optional error code for programmatic handling",
+                      "example": "TODO_NOT_FOUND",
+                      "type": "string"
+                    }
+                  },
+                  "required": [
+                    "error"
+                  ],
+                  "additionalProperties": false
+                }
+              }
+            }
+          }
+        }
+      },
+      "put": {
+        "summary": "Update a todo",
+        "description": "Update an existing todo item by its ID",
+        "operationId": "updateTodo",
+        "tags": [
+          "Todos"
+        ],
+        "parameters": [
+          {
+            "in": "path",
+            "name": "id",
+            "schema": {
+              "description": "The unique identifier of the todo item",
+              "example": 1,
+              "type": "integer",
+              "minimum": 1,
+              "maximum": 9007199254740991
+            },
+            "required": true,
+            "description": "The unique identifier of the todo item"
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "title": {
+                    "description": "The title of the todo item",
+                    "example": "Buy groceries",
+                    "type": "string",
+                    "minLength": 1
+                  },
+                  "description": {
+                    "description": "Optional detailed description of the todo item",
+                    "example": "Buy milk, eggs, and bread from the grocery store",
+                    "type": "string"
+                  },
+                  "completed": {
+                    "description": "Whether the todo item has been completed",
+                    "example": false,
+                    "type": "boolean"
+                  },
+                  "priority": {
+                    "description": "Priority level of the todo item",
+                    "example": "medium",
+                    "type": "string",
+                    "enum": [
+                      "low",
+                      "medium",
+                      "high"
+                    ]
+                  },
+                  "dueDate": {
+                    "description": "ISO datetime string for when the todo is due",
+                    "example": "2024-12-31T23:59:59.000Z",
+                    "type": "string",
+                    "format": "date-time",
+                    "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))T(?:(?:[01]\\d|2[0-3]):[0-5]\\d(?::[0-5]\\d(?:\\.\\d+)?)?(?:Z))$"
+                  }
+                }
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Todo updated successfully",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "description": "Todo updated successfully",
+                  "statusCode": 200,
+                  "type": "object",
+                  "properties": {
+                    "id": {
+                      "description": "Unique identifier for the todo item",
+                      "example": 1,
+                      "type": "integer",
+                      "minimum": 1,
+                      "maximum": 9007199254740991
+                    },
+                    "title": {
+                      "description": "The title of the todo item",
+                      "example": "Buy groceries",
+                      "type": "string"
+                    },
+                    "description": {
+                      "description": "Optional detailed description of the todo item",
+                      "example": "Buy milk, eggs, and bread from the grocery store",
+                      "type": "string"
+                    },
+                    "completed": {
+                      "description": "Whether the todo item has been completed",
+                      "example": false,
+                      "type": "boolean"
+                    },
+                    "priority": {
+                      "description": "Priority level of the todo item",
+                      "example": "medium",
+                      "type": "string",
+                      "enum": [
+                        "low",
+                        "medium",
+                        "high"
+                      ]
+                    },
+                    "dueDate": {
+                      "description": "ISO datetime string for when the todo is due",
+                      "example": "2024-12-31T23:59:59.000Z",
+                      "type": "string",
+                      "format": "date-time",
+                      "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))T(?:(?:[01]\\d|2[0-3]):[0-5]\\d(?::[0-5]\\d(?:\\.\\d+)?)?(?:Z))$"
+                    },
+                    "createdAt": {
+                      "description": "ISO datetime string for when the todo was created",
+                      "example": "2024-01-01T00:00:00.000Z",
+                      "type": "string",
+                      "format": "date-time",
+                      "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))T(?:(?:[01]\\d|2[0-3]):[0-5]\\d(?::[0-5]\\d(?:\\.\\d+)?)?(?:Z))$"
+                    },
+                    "updatedAt": {
+                      "description": "ISO datetime string for when the todo was last updated",
+                      "example": "2024-01-02T12:30:00.000Z",
+                      "type": "string",
+                      "format": "date-time",
+                      "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))T(?:(?:[01]\\d|2[0-3]):[0-5]\\d(?::[0-5]\\d(?:\\.\\d+)?)?(?:Z))$"
+                    }
+                  },
+                  "required": [
+                    "id",
+                    "title",
+                    "completed",
+                    "createdAt",
+                    "updatedAt"
+                  ],
+                  "additionalProperties": false
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Invalid request data",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "description": "Invalid request data",
+                  "statusCode": 400,
+                  "type": "object",
+                  "properties": {
+                    "error": {
+                      "description": "Error message describing what went wrong",
+                      "example": "Todo item not found",
+                      "type": "string"
+                    },
+                    "code": {
+                      "description": "Optional error code for programmatic handling",
+                      "example": "TODO_NOT_FOUND",
+                      "type": "string"
+                    }
+                  },
+                  "required": [
+                    "error"
+                  ],
+                  "additionalProperties": false
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Todo not found",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "description": "Todo not found",
+                  "statusCode": 404,
+                  "type": "object",
+                  "properties": {
+                    "error": {
+                      "description": "Error message describing what went wrong",
+                      "example": "Todo item not found",
+                      "type": "string"
+                    },
+                    "code": {
+                      "description": "Optional error code for programmatic handling",
+                      "example": "TODO_NOT_FOUND",
+                      "type": "string"
+                    }
+                  },
+                  "required": [
+                    "error"
+                  ],
+                  "additionalProperties": false
+                }
+              }
+            }
+          }
+        }
+      },
+      "delete": {
+        "summary": "Delete a todo",
+        "description": "Delete a todo item by its ID",
+        "operationId": "deleteTodo",
+        "tags": [
+          "Todos"
+        ],
+        "parameters": [
+          {
+            "in": "path",
+            "name": "id",
+            "schema": {
+              "description": "The unique identifier of the todo item",
+              "example": 1,
+              "type": "integer",
+              "minimum": 1,
+              "maximum": 9007199254740991
+            },
+            "required": true,
+            "description": "The unique identifier of the todo item"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Todo deleted successfully",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "statusCode": 200,
+                  "description": "Todo deleted successfully",
+                  "type": "object",
+                  "properties": {
+                    "success": {
+                      "type": "boolean"
+                    },
+                    "message": {
+                      "type": "string"
+                    }
+                  },
+                  "required": [
+                    "success",
+                    "message"
+                  ],
+                  "additionalProperties": false
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Todo not found",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "description": "Todo not found",
+                  "statusCode": 404,
+                  "type": "object",
+                  "properties": {
+                    "error": {
+                      "description": "Error message describing what went wrong",
+                      "example": "Todo item not found",
+                      "type": "string"
+                    },
+                    "code": {
+                      "description": "Optional error code for programmatic handling",
+                      "example": "TODO_NOT_FOUND",
+                      "type": "string"
+                    }
+                  },
+                  "required": [
+                    "error"
+                  ],
+                  "additionalProperties": false
+                }
+              }
+            }
+          }
+        }
+      }
+    }
+  }
+}, {
+        scrollYOffset: 0,
+        hideDownloadButton: false,
+        theme: {
+          colors: {
+            primary: {
+              main: '#32329f'
+            }
+          },
+          typography: {
+            fontSize: '14px',
+            lineHeight: '1.5em',
+            code: {
+              fontSize: '13px'
+            }
+          }
+        }
+      }, document.querySelector('redoc'));
+    </script>
+</body>
+</html>
