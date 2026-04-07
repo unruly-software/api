@@ -15,430 +15,219 @@
 [![TypeScript](https://img.shields.io/badge/TypeScript-Ready-3178c6.svg?style=flat&colorA=18181B&colorB=3178c6)](https://www.typescriptlang.org/)
 [![Downloads](https://img.shields.io/npm/dm/@unruly-software/api-server?style=flat&colorA=18181B&colorB=28CF8D)](https://www.npmjs.com/package/@unruly-software/api-server)
 
-A type-safe server router library that provides full TypeScript inference for
-endpoint handlers using shared API definitions from
-`@unruly-software/api-client`. Features automatic validation, integration with
-any transport layer, and modular router composition.
+A typed router for implementing the endpoint definitions you declared with
+[`@unruly-software/api-client`](../api-client). It validates incoming
+requests and outgoing responses against your Zod schemas, injects an
+application-defined context into every handler, and stays out of the way of
+the actual transport.
 
-## Quick Start
+This is an optional sibling of the core
+[`@unruly-software/api-client`](../api-client) package in the
+[`@unruly-software/api`](https://github.com/unruly-software/api) monorepo.
+Use it when you also own the server side and want to share the same
+definitions across both ends. The router has no opinion about HTTP — see
+[`@unruly-software/api-server-express`](../api-server-express) for one way to
+mount it on Express, or call `dispatch` yourself from any framework.
 
-Install the packages:
+## Install
 
 ```bash
-npm install @unruly-software/api-server @unruly-software/api-client zod
-# or
 yarn add @unruly-software/api-server @unruly-software/api-client zod
 ```
 
-Define your API using `@unruly-software/api-client`:
+`@unruly-software/api-client` is a peer dependency; `zod` (`^4.0.0`) is a
+peer dependency of `api-client`.
+
+## Quick Start
+
+Share an endpoint definition between client and server. The schemas, types,
+and metadata all come from the definition file:
 
 ```typescript
+// shared/api-definition.ts
 import { defineAPI } from '@unruly-software/api-client';
 import z from 'zod';
 
-const api = defineAPI<{
-  path: string;
-  method: 'GET' | 'POST' | 'PUT' | 'DELETE';
-}>();
+const api = defineAPI<{ path: string; method: 'GET' | 'POST' }>();
+
+const User = z.object({
+  id: z.number(),
+  name: z.string(),
+  email: z.string().email(),
+});
 
 export const apiDefinition = {
   getUser: api.defineEndpoint({
-    request: z.object({
-      userId: z.number(),
-    }),
-    response: z.object({
-      id: z.number(),
-      name: z.string(),
-      email: z.string().email(),
-    }),
-    metadata: {
-      method: 'GET',
-      path: '/users/:userId',
-    },
-  }),
-
-  createUser: api.defineEndpoint({
-    request: z.object({
-      name: z.string(),
-      email: z.string().email(),
-    }),
-    response: z.object({
-      id: z.number(),
-      name: z.string(),
-      email: z.string(),
-    }),
-    metadata: {
-      method: 'POST',
-      path: '/users',
-    },
+    request: z.object({ userId: z.number() }),
+    response: User,
+    metadata: { method: 'GET', path: '/users/:userId' },
   }),
 };
 ```
 
-Create and implement the server router:
+Build a router. The second type parameter is your application context — the
+shape of whatever the handlers need (database, services, current user,
+etc.). You provide it on every `dispatch`:
 
 ```typescript
+// server/router.ts
 import { defineRouter } from '@unruly-software/api-server';
+import { apiDefinition } from '../shared/api-definition';
+import type { UserRepo } from './user-repo';
 
-// Define your context type (e.g., database connections, services)
-type AppContext = {
-  db: Database;
-  userService: UserService;
-};
+type AppContext = { userRepo: UserRepo };
 
 const router = defineRouter<typeof apiDefinition, AppContext>({
   definitions: apiDefinition,
 });
 
-// Implement endpoint handlers with full type safety
-const getUserHandler = router
+const getUser = router
   .endpoint('getUser')
   .handle(async ({ context, data }) => {
-    // data is typed as { userId: number }
-    // context is typed as AppContext
-    const user = await context.userService.findById(data.userId);
-    return user; // Return type is automatically validated
+    // data is { userId: number } — already validated against the request schema
+    // context is AppContext
+    return await context.userRepo.get(data.userId);
   });
 
-const createUserHandler = router
-  .endpoint('createUser')
-  .handle(async ({ context, data }) => {
-    // data is typed as { name: string; email: string }
-    return await context.userService.create(data);
-  });
-
-// Create the implemented router
-const implementedRouter = router.implement({
-  endpoints: {
-    getUser: getUserHandler,
-    createUser: createUserHandler,
-  },
+export const apiRouter = router.implement({
+  endpoints: { getUser },
 });
+```
 
-// Use the router to dispatch requests
-const result = await implementedRouter.dispatch({
+Dispatch a request. This is the entry point any transport adapter calls
+into:
+
+```typescript
+const user = await apiRouter.dispatch({
   endpoint: 'getUser',
   data: { userId: 123 },
-  context: { db, userService },
+  context: { userRepo },
 });
 ```
 
-## Core Concepts
+`dispatch` parses `data` against the request schema, runs the handler, then
+parses the return value against the response schema. Anything that fails
+validation throws a `ZodError`. Anything the handler throws propagates
+unchanged — see [Errors](#errors) below.
 
-### Type Safety
+## How requests flow
 
-The API server provides complete TypeScript type inference by sharing API definitions with the client:
+`dispatch` is the only execution path. Every request goes through the same
+three steps:
 
-- **Request validation**: Input data is automatically validated using your request schemas
-- **Response validation**: Handler return values are validated against your response schemas
-- **Full type inference**: TypeScript knows the exact shape of request data and expected responses
-- **Shared definitions**: Use the same API definitions on both client and server for consistency
+1. **Request validation.** `definition.request.parse(data)` runs, throwing
+   `ZodError` on failure. If the endpoint's request schema is `null`, this
+   step is skipped.
+2. **Handler.** Your handler is called with `{ data, context, definition }`,
+   where `data` is the parsed (and possibly transformed) request.
+3. **Response validation.** `definition.response.parse(returnValue)` runs,
+   also throwing `ZodError` on mismatch. Skipped when the response schema
+   is `null`.
 
-### Router Definition
+There is no middleware chain, no request lifecycle, and no automatic error
+wrapping. Build whatever cross-cutting behaviour you need (auth, logging,
+transactions) by composing your context — see below.
 
-Routers are defined using shared API endpoint definitions and a context type:
+## Context as dependency injection
 
-- **API definitions**: Import endpoint definitions created with `@unruly-software/api-client`
-- **Context type**: Define the shape of your application context (database, services, etc.)
-- **Endpoint handlers**: Implement type-safe handlers for each endpoint
-- **Automatic validation**: Request and response data is automatically validated
-
-### Context Management
-
-The context system provides flexible dependency injection and middleware capabilities:
-
-```typescript
-const router = defineRouter<typeof apiDefinition, AppContext>({
-  definitions: apiDefinition,
-});
-
-// Handle endpoint directly
-const getUserHandler = router
-  .endpoint('getUser')
-  .handle(async ({ context, data }) => {
-    // Handle authentication directly in the handler
-    const user = await context.auth.getCurrentUser();
-    console.log('Current user:', user);
-    return await context.userService.findById(data.userId);
-  });
-```
-
-### Router Composition
-
-Combine multiple routers for modular API design:
+The context type is yours. The router treats it as an opaque value that's
+forwarded to every handler. The integration layer (Express adapter, your
+own HTTP server, a queue worker, a test harness) is responsible for
+producing it per request:
 
 ```typescript
-const userRouter = defineRouter({ definitions: userDefinitions }).implement({
-  endpoints: { /* user endpoints */ }
-});
-
-const orderRouter = defineRouter({ definitions: orderDefinitions }).implement({
-  endpoints: { /* order endpoints */ }
-});
-
-// Merge routers
-const apiRouter = mergeImplementedRouters(userRouter, orderRouter);
-```
-
-## Examples
-
-### Basic Router Setup
-
-```typescript
-import { defineAPI } from '@unruly-software/api-client';
-import { defineRouter } from '@unruly-software/api-server';
-import z from 'zod';
-
-// Define API using api-client
-const api = defineAPI<{ path: string; method: string }>();
-
-const todoAPI = {
-  getTodos: api.defineEndpoint({
-    request: null, // No request body needed
-    response: z.array(z.object({
-      id: z.number(),
-      title: z.string(),
-      completed: z.boolean(),
-    })),
-    metadata: { path: '/todos', method: 'GET' },
-  }),
-
-  createTodo: api.defineEndpoint({
-    request: z.object({
-      title: z.string().min(1),
-      completed: z.boolean().default(false),
-    }),
-    response: z.object({
-      id: z.number(),
-      title: z.string(),
-      completed: z.boolean(),
-    }),
-    metadata: { path: '/todos', method: 'POST' },
-  }),
+// What "auth middleware" looks like: build it into the context.
+const makeContext = async (req: Request): Promise<AppContext> => {
+  const session = await loadSession(req);
+  return {
+    userRepo: new UserRepo(db),
+    currentUser: session?.user ?? null,
+    log: logger.child({ requestId: req.id }),
+  };
 };
 
-// Define context
-type TodoContext = {
-  todoService: TodoService;
-};
-
-// Create router
-const router = defineRouter<typeof todoAPI, TodoContext>({
-  definitions: todoAPI,
-});
-
-// Implement handlers
-const implementedRouter = router.implement({
-  endpoints: {
-    getTodos: router
-      .endpoint('getTodos')
-      .handle(async ({ context }) => {
-        return await context.todoService.findAll();
-      }),
-
-    createTodo: router
-      .endpoint('createTodo')
-      .handle(async ({ context, data }) => {
-        return await context.todoService.create(data);
-      }),
-  },
+await apiRouter.dispatch({
+  endpoint: 'getUser',
+  data: req.body,
+  context: await makeContext(req),
 });
 ```
 
-### Error Handling
+This keeps the router framework-agnostic. It also means handlers can be
+called from anywhere — tests, scripts, queue consumers — by constructing a
+context object directly.
+
+## Errors
+
+`dispatch` doesn't catch anything:
+
+- **Request validation failures** throw `ZodError`.
+- **Handler errors** propagate as-is. Throw whatever class you want — the
+  caller (or the transport adapter) decides how to surface it.
+- **Response validation failures** throw `ZodError`.
+
+The recommended pattern is to throw domain error classes from handlers and
+let the transport adapter map them to a wire format. The Express adapter,
+for example, accepts a `handleError` option that can recognise a
+`NotFoundError` and respond with HTTP 404. The full round trip
+(server-side throw → JSON envelope → client-side typed exception) is
+documented in the [`api-client` README](../api-client/README.md#throwing-typed-errors-from-your-server).
 
 ```typescript
-const router = defineRouter<typeof apiDefinition, AppContext>({
-  definitions: apiDefinition,
-});
-
-const getUserWithErrorHandling = router
-  .endpoint('getUser')
-  .handle(async ({ context, data }) => {
-    try {
-      const user = await context.userService.findById(data.userId);
-
-      if (!user) {
-        // Return null as defined in response schema
-        return null;
-      }
-
-      return user;
-    } catch (error) {
-      context.logger.error('Failed to get user', { userId: data.userId, error });
-      throw new Error(`User lookup failed: ${error.message}`);
-    }
-  });
-
-// Error handling in dispatch
-try {
-  const result = await implementedRouter.dispatch({
-    endpoint: 'getUser',
-    data: { userId: 999 },
-    context: appContext,
-  });
-} catch (error) {
-  // Handle validation errors, handler errors, etc.
-  console.error('Request failed:', error.message);
-}
-```
-
-### Integration with Express
-
-```typescript
-import express from 'express';
-
-const app = express();
-app.use(express.json());
-
-// Generic handler for all API endpoints
-app.all('/api/:endpoint', async (req, res) => {
-  try {
-    const result = await implementedRouter.dispatch({
-      endpoint: req.params.endpoint,
-      data: req.body,
-      context: {
-        db,
-        userService,
-        logger: req.logger,
-      },
-    });
-
-    res.json(result);
-  } catch (error) {
-    res.status(500).json({ error: error.message });
+class NotFoundError extends Error {
+  constructor(message: string) {
+    super(message);
+    this.name = 'NotFoundError';
   }
-});
+}
+
+const getUser = router
+  .endpoint('getUser')
+  .handle(async ({ context, data }) => {
+    const user = await context.userRepo.get(data.userId);
+    if (!user) throw new NotFoundError(`User ${data.userId} not found`);
+    return user;
+  });
 ```
 
-## API Reference
+## Composing routers
 
-### `defineRouter<API, CTX>(config)`
-
-Creates a new router for the given API definitions and context type.
-
-**Type Parameters:**
-- `API` - The API endpoint definitions type
-- `CTX` - The application context type
-
-**Parameters:**
-- `config.definitions` - Object containing endpoint definitions from `@unruly-software/api-client`
-
-**Returns:** `APIRouter<API, CTX>`
-
-**Example:**
-```typescript
-const router = defineRouter<typeof apiDefinition, AppContext>({
-  definitions: apiDefinition,
-});
-```
-
-### `APIRouter<API, CTX>`
-
-The main router interface for building endpoint handlers.
-
-#### Methods
-
-##### `endpoint<K>(endpoint)`
-
-Select an endpoint to implement.
-
-**Type Parameters:**
-- `K` - Endpoint key from API definitions
-
-**Parameters:**
-- `endpoint` - The endpoint key to implement
-
-**Returns:** `APIRoute<API[K], CTX, CTX>`
-
-##### `implement(config)`
-
-Create an implemented router with all endpoint handlers.
-
-**Parameters:**
-- `config.endpoints` - Object mapping endpoint keys to their implementations
-
-**Returns:** `ImplementedAPIRouter<API, CTX>`
-
-### `APIRoute<DEF, CTX>`
-
-Interface for configuring a single endpoint route.
-
-#### Methods
-
-##### `handle(handler)`
-
-Implement the endpoint handler function.
-
-**Parameters:**
-- `handler` - Function that processes the request
-  - `handler.data` - Validated request data
-  - `handler.definition` - Endpoint definition
-  - `handler.context` - Application context to inject dependencies
-
-**Returns:** `FinalizedAPIRoute<DEF, CTX>`
-
-
-### `ImplementedAPIRouter<API, CTX>`
-
-A fully implemented router ready to handle requests.
-
-#### Properties
-
-##### `definitions`
-
-The API endpoint definitions used by this router.
-
-**Type:** `API`
-
-##### `endpoints`
-
-Map of implemented endpoint handlers.
-
-**Type:** `{ [K in keyof API]: FinalizedAPIRoute<API[K], any, CTX> }`
-
-#### Methods
-
-##### `dispatch<K>(args)`
-
-Execute a request against an endpoint.
-
-**Type Parameters:**
-- `K` - Endpoint key from API definitions
-
-**Parameters:**
-- `args.endpoint` - Endpoint key to call
-- `args.data` - Request data (validated against endpoint schema)
-- `args.context` - Application context
-
-**Returns:** `Promise<SchemaServerResponse<API[K]['response']>>`
-
-### Type Definitions
-
-#### `SchemaServerResponse<S>`
-
-The return type for endpoint handlers based on the response schema.
+Split a large API across multiple files and merge them at the edge with
+`mergeImplementedRouters`. Definitions are unioned and context types are
+intersected, so the merged router needs a context that satisfies both
+inputs:
 
 ```typescript
-type SchemaServerResponse<S extends SchemaValue> =
-  SchemaInferInput<S> extends never ? void : SchemaInferInput<S>
+import { mergeImplementedRouters } from '@unruly-software/api-server';
+import { userRouter } from './user-router';
+import { orderRouter } from './order-router';
+
+export const apiRouter = mergeImplementedRouters(userRouter, orderRouter);
+// dispatch needs a context that satisfies both UserContext & OrderContext
 ```
 
-#### `APIEndpointDefinitions`
+## Mounting on a transport
 
-Base type for API endpoint definition objects.
+The router has no built-in HTTP support. To serve it, walk
+`apiRouter.definitions`, read the metadata you declared, and call
+`apiRouter.dispatch` from your framework's request handler. The
+[`api-server-express`](../api-server-express) package is one ready-made
+example; the [`examples/`](../../examples) directory contains Fastify and
+Express versions you can copy from.
 
-```typescript
-type APIEndpointDefinitions = Record<string, AnyEndpointDefinition>
-```
+## Other packages in this monorepo
 
-#### `FinalizedAPIRoute<DEF, CTX>`
+| Package | When you'd reach for it |
+|---|---|
+| **[`@unruly-software/api-client`](../api-client)** | The core. Defines the endpoint shape and runs the client side; this package is built on top of its definitions. |
+| **[`@unruly-software/api-query`](../api-query)** | Typed `useAPIQuery` / `useAPIMutation` hooks for `@tanstack/react-query`, against the same definitions. |
+| **[`@unruly-software/api-server-express`](../api-server-express)** *(experimental)* | Mounts an implemented router on an Express app and provides a `handleError` hook. |
 
-A finalized route handler with both regular and direct invocation methods.
-
-**Properties:**
-- `handle(input)` - Handle request with middleware chain
-- `handleDirect(input)` - Skip middleware and invoke handler directly
+For end-to-end walkthroughs see the [examples directory](../../examples)
+(`express-app`, `example-fastify-server`, and `todo-app-openapi` all use
+this package). The root [README](../../README.md) covers the design
+rationale and how the framework compares to tRPC, GraphQL, OpenAPI, gRPC,
+ts-rest, and Zodios.
 
 ## License
 

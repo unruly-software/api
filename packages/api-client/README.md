@@ -15,21 +15,31 @@
 [![TypeScript](https://img.shields.io/badge/TypeScript-Ready-3178c6.svg?style=flat&colorA=18181B&colorB=3178c6)](https://www.typescriptlang.org/)
 [![Downloads](https://img.shields.io/npm/dm/@unruly-software/api-client?style=flat&colorA=18181B&colorB=28CF8D)](https://www.npmjs.com/package/@unruly-software/api-client)
 
-A type-safe API client library that provides full TypeScript inference for
-request and response data using Zod schemas. Features automatic validation,
-flexible transport layers, and event-driven success/failure monitoring.
+A type-safe API client built around Zod schemas. You describe each endpoint
+once — request shape, response shape, and whatever metadata your transport
+needs — and the client validates I/O on the way in and on the way out.
 
-## Quick Start
+This is the core package of the
+[`@unruly-software/api`](https://github.com/unruly-software/api) monorepo. It
+is the only package you need to define endpoints and call them; the sibling
+packages ([`api-server`](../api-server),
+[`api-query`](../api-query),
+[`api-server-express`](../api-server-express)) are optional layers that
+consume the same definitions.
 
-Install the package:
+## Install
 
 ```bash
-npm install @unruly-software/api-client zod
-# or
 yarn add @unruly-software/api-client zod
 ```
 
-Define your API:
+`zod` is a peer dependency — version `^4.0.0`.
+
+## Quick Start
+
+Define your endpoints with `defineAPI`. The type parameter declares whatever
+metadata your transport needs (HTTP method and path here, but it could be a
+queue name, an IPC channel, an auth scope — whatever you want):
 
 ```typescript
 import { defineAPI } from '@unruly-software/api-client';
@@ -42,445 +52,246 @@ const api = defineAPI<{
 
 export const apiDefinition = {
   getUser: api.defineEndpoint({
-    request: z.object({
-      userId: z.number(),
-    }),
+    request: z.object({ userId: z.number() }),
     response: z.object({
       id: z.number(),
       name: z.string(),
       email: z.string().email(),
     }),
-    metadata: {
-      method: 'GET',
-      path: '/users/:userId',
-    },
-  }),
-
-  createUser: api.defineEndpoint({
-    request: z.object({
-      name: z.string(),
-      email: z.string().email(),
-    }),
-    response: z.object({
-      id: z.number(),
-      name: z.string(),
-      email: z.string(),
-    }),
-    metadata: {
-      method: 'POST',
-      path: '/users',
-    },
+    metadata: { method: 'GET', path: '/users/:userId' },
   }),
 };
 ```
 
-Create and use the client:
+Construct a client with a resolver — a single function that takes the
+validated request and returns whatever the server sent back:
 
 ```typescript
 import { APIClient } from '@unruly-software/api-client';
 
 const client = new APIClient(apiDefinition, {
-  resolver: async ({ definition, request }) => {
-    const response = await fetch(`https://api.example.com${definition.metadata.path}`, {
-      method: definition.metadata.method,
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify(request),
-    });
+  resolver: async ({ definition, request, abortSignal }) => {
+    const response = await fetch(
+      `https://api.example.com${definition.metadata.path}`,
+      {
+        method: definition.metadata.method,
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(request),
+        signal: abortSignal,
+      },
+    );
     return response.json();
   },
 });
-
-// Type-safe API calls with full inference
-const user = await client.request('getUser', {
-  request: { userId: 123 }
-});
-// user is typed as { id: number; name: string; email: string }
-
-const newUser = await client.request('createUser', {
-  request: { name: 'John', email: 'john@example.com' }
-});
-// Full type safety - TypeScript will catch any type mismatches
 ```
 
-## Core Concepts
-
-### Type Safety
-
-The API client provides complete TypeScript type inference from your Zod schemas:
-
-- **Request validation**: Input data is parsed by your request schema before sending
-- **Response validation**: Server responses are validated and parsed by your response schema
-- **Full type inference**: TypeScript knows the exact shape of requests and responses
-- **Compile-time safety**: Type errors are caught at build time, not runtime
-
-### Endpoint Definitions
-
-Endpoints are defined with three parts:
-
-- **Request schema**: Zod schema defining the input data structure (or null if no request body is needed)
-- **Response schema**: Zod schema defining the expected response structure (or null if no response body is expected)
-- **Metadata**: Custom metadata object (paths, HTTP methods, etc.) that can be used by your resolver or the server to determine how to send or handle the request.
-
-### Resolver Pattern
-
-The resolver is your transport layer - it handles the actual network
-communication/transport. You can implement it using any protocol (HTTP,
-WebSocket, IPC, etc.) or even mock it for testing. The client will handle
-validation and type inference, while the resolver focuses on sending requests
-and receiving responses.:
+Call it. The result is fully typed from the response schema:
 
 ```typescript
-const client = new APIClient(apiDefinition, {
-  resolver: async ({ definition, request, endpoint, abortSignal }) => {
-    // definition: The endpoint definition with metadata
-    // request: Validated request data
-    // endpoint: The endpoint key (e.g., 'getUser')
-    // abortSignal: Optional AbortSignal for request cancellation
+const user = await client.request('getUser', { request: { userId: 123 } });
+//    ^? { id: number; name: string; email: string }
+```
 
-    // Implement any transport: HTTP, WebSocket, IPC, etc.
-    return await transport.send(definition, request);
+## The resolver
+
+The resolver is the only thing the client needs to function. It receives the
+endpoint key, its full definition (including your metadata), the validated
+request, and an `AbortSignal`. It returns whatever raw value the response
+schema should parse.
+
+```typescript
+import type { APIResolver } from '@unruly-software/api-client';
+
+const resolver: APIResolver<typeof apiDefinition> = async ({
+  endpoint,    // 'getUser'
+  definition,  // the full endpoint definition with your metadata
+  request,     // already validated against the request schema
+  abortSignal, // forward to fetch / your transport
+}) => {
+  // Any transport works: fetch, axios, websocket, IPC, in-memory, a mock.
+  return await transport.send(definition.metadata, request);
+};
+```
+
+Anything the resolver throws becomes the error the caller sees (after the
+error formatter, if you've installed one). That's the hook the next section
+uses to turn server errors into typed exceptions.
+
+## Throwing typed errors from your server
+
+The error formatter is the recommended place to convert raw transport errors
+into domain-specific error classes that callers can `catch` by `instanceof`.
+The full round trip looks like this:
+
+**1. Throw a domain error on the server.** Define a class your handlers can
+throw, then teach the Express adapter how to serialise it. The
+[`api-server-express`](../api-server-express) package accepts a `handleError`
+option exactly for this:
+
+```typescript
+// shared/errors.ts
+export class NotFoundError extends Error {
+  readonly code = 'NOT_FOUND';
+  constructor(message: string) {
+    super(message);
+    this.name = 'NotFoundError';
+  }
+}
+```
+
+```typescript
+// server.ts
+import { mountExpressApp } from '@unruly-software/api-server-express';
+import { NotFoundError } from './shared/errors';
+
+mountExpressApp({
+  app,
+  router,
+  makeContext: async (req) => ({ /* ... */ }),
+  handleError: ({ error, res }) => {
+    if (error instanceof NotFoundError) {
+      res.status(404).json({ code: error.code, message: error.message });
+      return;
+    }
+    res.status(500).json({ code: 'INTERNAL', message: error.message });
   },
 });
 ```
 
-### Event System
+A handler can now `throw new NotFoundError('User 123 not found')` and the
+server will respond with a recognisable JSON envelope.
 
-Monitor API calls with built-in topics:
-
-```typescript
-// Listen for successful requests
-client.$succeeded.subscribe(({ endpoint, request, response }) => {
-  console.log(`${endpoint} succeeded:`, { request, response });
-});
-
-// Listen for failed requests
-client.$failed.subscribe(({ endpoint, request, error }) => {
-  console.log(`${endpoint} failed:`, { request, error });
-});
-```
-
-## Examples
-
-### Basic HTTP Client
+**2. Surface the body from the client resolver.** Keep the resolver dumb — it
+just throws whatever the server returned, with enough context for the
+formatter to classify it:
 
 ```typescript
-import { APIClient, defineAPI } from '@unruly-software/api-client';
-import z from 'zod';
+class APIError extends Error {
+  constructor(
+    message: string,
+    readonly status: number,
+    readonly code: string | undefined,
+  ) {
+    super(message);
+  }
+}
 
-const api = defineAPI<{ path: string; method: string }>();
-
-const userAPI = {
-  login: api.defineEndpoint({
-    request: z.object({
-      email: z.string().email(),
-      password: z.string().min(8),
-    }),
-    response: z.object({
-      token: z.string(),
-      user: z.object({
-        id: z.number(),
-        email: z.string(),
-      }),
-    }),
-    metadata: { path: '/auth/login', method: 'POST' },
-  }),
-
-  logout: api.defineEndpoint({
-    request: null, // No request body needed
-    response: z.object({
-      status: z.literal('ok'),
-    }),
-    metadata: { path: '/auth/logout', method: 'POST' },
-  }),
-};
-
-const client = new APIClient(userAPI, {
+const client = new APIClient(apiDefinition, {
   resolver: async ({ definition, request, abortSignal }) => {
-    const response = await fetch(`https://api.example.com${definition.metadata.path}`, {
-      method: definition.metadata.method,
-      headers: { 'Content-Type': 'application/json' },
-      body: request ? JSON.stringify(request) : undefined,
-      signal: abortSignal,
-    });
+    const response = await fetch(
+      `https://api.example.com${definition.metadata.path}`,
+      {
+        method: definition.metadata.method,
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(request),
+        signal: abortSignal,
+      },
+    );
 
     if (!response.ok) {
-      throw new Error(`HTTP ${response.status}: ${response.statusText}`);
+      const body = await response.json().catch(() => ({}));
+      throw new APIError(body.message ?? response.statusText, response.status, body.code);
     }
 
     return response.json();
   },
 });
-
-// Usage
-const loginResult = await client.request('login', {
-  request: { email: 'user@example.com', password: 'secret123' }
-});
-
-const logoutResult = await client.request('logout');
-// No request parameter needed for endpoints with null request schema
 ```
 
-### Error Handling and Validation
+**3. Convert it in the error formatter.** Define a matching class on the
+client and re-throw it from `setErrorFormatter`. The formatter receives the
+*original* thrown error, so `instanceof` checks work:
 
 ```typescript
-// Set up error formatting
-client.setErrorFormatter((error, context) => {
-  if (context.stage === 'request-validation') {
-    return new Error(`Invalid request: ${error.message}`);
-  }
-  if (context.stage === 'response-validation') {
-    return new Error(`Invalid server response: ${error.message}`);
-  }
-  return new Error(`Network error: ${error.message}`);
-});
+import { NotFoundError } from './shared/errors';
 
+client.setErrorFormatter((error, context) => {
+  if (context.stage === 'resolver' && error instanceof APIError) {
+    if (error.code === 'NOT_FOUND') {
+      return new NotFoundError(error.message);
+    }
+  }
+  return error;
+});
+```
+
+**4. Catch it by class at the call site.**
+
+```typescript
 try {
-  await client.request('login', {
-    request: { email: 'invalid-email', password: '123' } // Too short
-  });
-} catch (error) {
-  // Error will be formatted with context about validation failure
+  const user = await client.request('getUser', { request: { userId: 123 } });
+} catch (e) {
+  if (e instanceof NotFoundError) {
+    // render a 404 state, redirect, whatever
+    return;
+  }
+  throw e;
 }
 ```
 
-### Request Cancellation
+### The three formatter stages
+
+`context.stage` is one of `'request-validation'`, `'resolver'`, or
+`'response-validation'`:
+
+| Stage | When it fires | Published to `$failed`? |
+|---|---|---|
+| `request-validation` | Zod rejects the input you passed to `client.request` | No |
+| `resolver` | Your resolver throws (network failure, server error, etc.) | **Yes** |
+| `response-validation` | Zod rejects what the resolver returned | No |
+
+Only the `resolver` stage publishes to `$failed`, so put cross-cutting
+"a request failed" telemetry in the formatter or in a `$failed` subscriber
+depending on whether you also want validation failures.
+
+## Cancelling requests
+
+Pass an `AbortSignal` to `request`. The client forwards it to the resolver as
+`abortSignal`:
 
 ```typescript
 const controller = new AbortController();
 
-// Start a request
-const userPromise = client.request('getUser', {
+const promise = client.request('getUser', {
   request: { userId: 123 },
   abort: controller.signal,
 });
 
-// Cancel it if needed
-setTimeout(() => controller.abort(), 5000);
-
-try {
-  const user = await userPromise;
-} catch (error) {
-  if (error.name === 'AbortError') {
-    console.log('Request was cancelled');
-  }
-}
+controller.abort();
 ```
 
-### Custom Transport Layer
+## Observing requests
+
+Every client exposes two topics. Subscribe to either; the returned function
+unsubscribes.
 
 ```typescript
-// WebSocket resolver example
-const wsClient = new APIClient(apiDefinition, {
-  resolver: async ({ definition, request, endpoint }) => {
-    return new Promise((resolve, reject) => {
-      const requestId = generateId();
+const offSuccess = client.$succeeded.subscribe(({ endpoint, request, response }) => {
+  console.log(`✓ ${String(endpoint)}`, { request, response });
+});
 
-      // Send request via WebSocket
-      ws.send(JSON.stringify({
-        id: requestId,
-        endpoint,
-        data: request,
-      }));
-
-      // Wait for response
-      const handler = (event) => {
-        const response = JSON.parse(event.data);
-        if (response.id === requestId) {
-          ws.removeEventListener('message', handler);
-          if (response.error) {
-            reject(new Error(response.error));
-          } else {
-            resolve(response.data);
-          }
-        }
-      };
-
-      ws.addEventListener('message', handler);
-    });
-  },
+const offFailure = client.$failed.subscribe(({ endpoint, request, error }) => {
+  console.error(`✗ ${String(endpoint)}`, { request, error });
 });
 ```
 
-### Event Monitoring
+Remember that `$failed` only fires for resolver-stage errors. Validation
+failures throw without publishing — handle those in the error formatter if
+you need to observe them.
 
-```typescript
-// Analytics tracking
-client.$succeeded.subscribe(({ endpoint, request, response }) => {
-  analytics.track('api_request_success', {
-    endpoint,
-    response_size: JSON.stringify(response).length,
-  });
-});
+## Other packages in this monorepo
 
-client.$failed.subscribe(({ endpoint, request, error }) => {
-  analytics.track('api_request_failed', {
-    endpoint,
-    error: error.message,
-  });
-});
+| Package | When you'd reach for it |
+|---|---|
+| **[`@unruly-software/api-server`](../api-server)** | When you also own the server side and want typed handlers with shared definitions and a context object. |
+| **[`@unruly-software/api-query`](../api-query)** | When you're using `@tanstack/react-query` and want typed `useAPIQuery` / `useAPIMutation` hooks with declarative cache invalidation. |
+| **[`@unruly-software/api-server-express`](../api-server-express)** *(experimental)* | When you want to plug an `api-server` router into an Express app, including the `handleError` hook used above. |
 
-// Request logging
-client.$succeeded.subscribe(({ endpoint, request, response }) => {
-  console.log(`✓ ${endpoint}`, { request, response });
-});
-
-client.$failed.subscribe(({ endpoint, request, error }) => {
-  console.error(`✗ ${endpoint}`, { request, error: error.message });
-});
-```
-
-## API Reference
-
-### `defineAPI<METADATA>()`
-
-Creates a new API definition builder with typed metadata.
-
-**Type Parameters:**
-- `METADATA` - Shape of metadata object for each endpoint
-
-**Returns:** Object with `defineEndpoint` method
-
-**Example:**
-```typescript
-const api = defineAPI<{
-  path: string;
-  method: 'GET' | 'POST';
-  auth?: boolean;
-}>();
-```
-
-### `APIClient<T>`
-
-Main client class for making type-safe API requests.
-
-#### Constructor
-
-```typescript
-new APIClient<T>(definitions: T, config: APIClientConfig<T>)
-```
-
-**Parameters:**
-- `definitions` - Object containing endpoint definitions
-- `config` - Configuration object with resolver function
-
-#### Methods
-
-##### `request<K>(endpoint, options?)`
-
-Make a type-safe request to an endpoint.
-
-**Type Parameters:**
-- `K` - Endpoint key from definitions
-
-**Parameters:**
-- `endpoint` - Endpoint key
-- `options` - Request options (required if endpoint expects request data)
-  - `request` - Request data (typed based on endpoint schema)
-  - `abort?` - AbortSignal for request cancellation
-
-**Returns:** `Promise<ResponseType>` - Response typed based on endpoint schema
-
-##### `setErrorFormatter(formatter)`
-
-Set a custom error formatter for validation and resolver errors.
-
-**Parameters:**
-- `formatter` - Function that takes error and context, returns formatted Error
-
-```typescript
-client.setErrorFormatter((error, context) => {
-  // context.stage is 'request-validation' | 'resolver' | 'response-validation'
-  return new Error(`${context.stage}: ${error.message}`);
-});
-```
-
-#### Properties
-
-##### `$succeeded`
-
-Topic that emits successful request messages.
-
-**Type:** `Topic<SuccessMessage<T>>`
-
-**Message format:**
-```typescript
-{
-  endpoint: string;
-  request: any;
-  response: any;
-}
-```
-
-##### `$failed`
-
-Topic that emits failed request messages.
-
-**Type:** `Topic<ErrorMessage<T>>`
-
-**Message format:**
-```typescript
-{
-  endpoint: string;
-  request: any;
-  error: Error;
-}
-```
-
-### Type Definitions
-
-#### `APIResolver<T>`
-
-Function signature for the transport resolver.
-
-```typescript
-type APIResolver<T> = (params: {
-  endpoint: keyof T;
-  definition: T[keyof T];
-  request: any;
-  abortSignal?: AbortSignal;
-}) => Promise<unknown>
-```
-
-#### `EndpointDefinition<REQUEST, RESPONSE, METADATA>`
-
-Shape of an endpoint definition.
-
-```typescript
-type EndpointDefinition<
-  REQUEST extends SchemaValue,
-  RESPONSE extends SchemaValue,
-  METADATA extends Record<string, unknown>
-> = {
-  request: REQUEST;
-  response: RESPONSE;
-  metadata: METADATA;
-}
-```
-
-#### `RequestOptions<T>`
-
-Options for making requests, conditional on whether request data is required.
-
-#### `ErrorFormatter`
-
-Function for customizing error messages.
-
-```typescript
-type ErrorFormatter = (
-  error: Error,
-  context: {
-    stage: 'request-validation' | 'resolver' | 'response-validation';
-  }
-) => Error
-```
-
-### Topics
-
-Topics provide an event-driven way to monitor API calls. Each topic supports:
-
-- `subscribe(listener)` - Add a listener function, returns unsubscribe function
-- `publish(message)` - Emit a message to all listeners
-- `publishAsync(message)` - Emit a message and wait for all listeners to complete
+For end-to-end walkthroughs — including the typed-error round trip against a
+real Express server — see the [examples directory](../../examples), in
+particular [`examples/express-app`](../../examples/express-app). The root
+[README](../../README.md) covers the design rationale and how this framework
+compares to tRPC, GraphQL, OpenAPI, gRPC, ts-rest, and Zodios.
 
 ## License
 
