@@ -1,7 +1,13 @@
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { ReactQueryDevtools } from '@tanstack/react-query-devtools';
-import { jsonPlaceholderClient } from '@unruly-software/api-example-existing-api';
-import { mountAPIQueryClient } from '@unruly-software/api-query';
+import {
+  jsonPlaceholderAPI,
+  jsonPlaceholderClient,
+} from '@unruly-software/api-example-existing-api';
+import {
+  defineAPIQueryKeys,
+  mountAPIQueryClient,
+} from '@unruly-software/api-query';
 import { useState } from 'react';
 import { PostsList } from './components/PostsList';
 import { UsersList } from './components/UsersList';
@@ -16,16 +22,19 @@ export const queryClient = new QueryClient({
   },
 });
 
-export const { useAPIQuery, useAPIMutation } = mountAPIQueryClient(
-  jsonPlaceholderClient,
+const config = defineAPIQueryKeys(jsonPlaceholderAPI, {});
+
+export const { useAPIQuery, useAPIMutation } = mountAPIQueryClient({
+  apiClient: jsonPlaceholderClient,
   queryClient,
-  {
+  queryKeys: config,
+  endpoints: {
     createPost: {
-      invalidates: () => [['getPosts']],
+      invalidates: () => [config.getKeyForEndpoint('getPosts')],
       mutationOptions: {},
     },
   },
-);
+});
 jsonPlaceholderClient.$succeeded.subscribe(
   ({ endpoint, request, response }) => {
     console.log(`API call to ${endpoint} succeeded`, { request, response });

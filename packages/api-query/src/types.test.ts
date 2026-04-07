@@ -5,11 +5,13 @@ import z from 'zod';
 import {
   type APIMutationOptions,
   type APIQueryOptions,
+  defineAPIQueryKeys,
+  type MountAPIQueryClientOptions,
   mountAPIQueryClient,
-  type QueryConfig,
+  queryKey,
 } from './index';
 
-// all tests in this file as these are only for type checking
+// Skip all tests in this file — they're type-only assertions, not runtime checks.
 beforeEach((t) => {
   t.skip();
 });
@@ -40,9 +42,6 @@ const testDefinition = {
     metadata: { path: '/health', method: 'GET' },
     request: null,
     response: z.object({ status: z.literal('ok') }),
-    apiQuery: {
-      queryKey: () => ['health'],
-    },
   }),
 
   // Endpoint with request and response
@@ -50,9 +49,6 @@ const testDefinition = {
     metadata: { path: '/users/:id', method: 'GET' },
     request: z.object({ userId: z.number() }),
     response: UserSchema,
-    apiQuery: {
-      queryKey: (request: any) => ['user', request.userId],
-    },
   }),
 
   // Endpoint with transform
@@ -115,62 +111,76 @@ const apiClient = new APIClient(testDefinition, {
   resolver: async () => ({}),
 });
 
-const testConfig: QueryConfig<TestAPI> = {
-  health: {
-    queryOptions: {
-      staleTime: 5000,
-      gcTime: 10000,
-    },
-  },
-  getUser: {
-    invalidates: () => [['users']],
-    queryOptions: {
-      enabled: true,
-      staleTime: 60000,
-    },
-  },
-  createUser: {
-    invalidates: ({ response }) => [['users'], ['user', response.id]],
-    mutationOptions: {
-      onSuccess: (data) => {
-        expectTypeOf(data).toEqualTypeOf<{
-          id: number;
-          name: string;
-          email: string;
-        }>();
+const config = defineAPIQueryKeys(testDefinition, {
+  health: () => queryKey('health'),
+  getUser: (request) => queryKey('user', request?.userId),
+});
+
+const testMountOptions: MountAPIQueryClientOptions<TestAPI> = {
+  endpoints: {
+    health: {
+      queryOptions: {
+        staleTime: 5000,
+        gcTime: 10000,
       },
     },
-  },
-  updateUser: {
-    errorInvalidates: ({ request }) => [['user', request.userId]],
+    getUser: {
+      invalidates: () => [['users']],
+      queryOptions: {
+        enabled: true,
+        staleTime: 60000,
+      },
+    },
+    createUser: {
+      invalidates: ({ response }) => [['users'], ['user', response.id]],
+      mutationOptions: {
+        onSuccess: (data) => {
+          expectTypeOf(data).toEqualTypeOf<{
+            id: number;
+            name: string;
+            email: string;
+          }>();
+        },
+      },
+    },
+    updateUser: {
+      errorInvalidates: ({ request }) => [['user', request.userId]],
+    },
   },
 };
 
-const { useAPIQuery, useAPIMutation } = mountAPIQueryClient(
+const { useAPIQuery, useAPIMutation } = mountAPIQueryClient({
   apiClient,
   queryClient,
-  testConfig,
-);
+  queryKeys: config,
+  ...testMountOptions,
+});
 
 describe('Type Tests for API Query Integration', () => {
-  describe('QueryConfig type', () => {
+  describe('MountAPIQueryClientOptions type', () => {
     it('should properly type configuration options', () => {
-      expectTypeOf(testConfig).toMatchTypeOf<QueryConfig<TestAPI>>();
+      expectTypeOf(testMountOptions).toMatchTypeOf<
+        MountAPIQueryClientOptions<TestAPI>
+      >();
 
       // Verify specific configuration typing
-      expectTypeOf(testConfig.createUser?.invalidates).toMatchTypeOf<
+      expectTypeOf(
+        testMountOptions.endpoints?.createUser?.invalidates,
+      ).toMatchTypeOf<
         | ((input: {
             request: { name: string; email: string };
             response: { id: number; name: string; email: string };
-          }) => QueryKeyItem[][])
+          }) => readonly (readonly QueryKeyItem[])[])
         | undefined
       >();
 
-      expectTypeOf(testConfig.updateUser?.errorInvalidates).toMatchTypeOf<
+      expectTypeOf(
+        testMountOptions.endpoints?.updateUser?.errorInvalidates,
+      ).toMatchTypeOf<
         | ((input: {
             request: { userId: number; name?: string; email?: string };
             error: Error;
-          }) => QueryKeyItem[][])
+          }) => readonly (readonly QueryKeyItem[])[])
         | undefined
       >();
     });
@@ -374,7 +384,12 @@ describe('Type Tests for API Query Integration', () => {
   describe('mountAPIQueryClient types', () => {
     it('should correctly type the returned hooks', () => {
       const { useAPIQuery: query, useAPIMutation: mutation } =
-        mountAPIQueryClient(apiClient, queryClient, testConfig);
+        mountAPIQueryClient({
+          apiClient,
+          queryClient,
+          queryKeys: config,
+          ...testMountOptions,
+        });
 
       expectTypeOf(query).toMatchTypeOf<typeof useAPIQuery>();
       expectTypeOf(mutation).toMatchTypeOf<typeof useAPIMutation>();
@@ -382,18 +397,24 @@ describe('Type Tests for API Query Integration', () => {
 
     it('should enforce config type compatibility', () => {
       // This should work fine
-      const validConfig: QueryConfig<TestAPI> = {
-        getUser: {
-          invalidates: () => [['users']],
+      const validOptions: MountAPIQueryClientOptions<TestAPI> = {
+        endpoints: {
+          getUser: {
+            invalidates: () => [['users']],
+          },
         },
       };
 
-      expectTypeOf(validConfig).toMatchTypeOf<QueryConfig<TestAPI>>();
+      expectTypeOf(validOptions).toMatchTypeOf<
+        MountAPIQueryClientOptions<TestAPI>
+      >();
 
-      const _invalidConfig: QueryConfig<TestAPI> = {
-        // @ts-expect-error
-        nonExistentEndpoint: {
-          invalidates: () => [['test']],
+      const _invalidOptions: MountAPIQueryClientOptions<TestAPI> = {
+        endpoints: {
+          // @ts-expect-error
+          nonExistentEndpoint: {
+            invalidates: () => [['test']],
+          },
         },
       };
     });
@@ -408,12 +429,13 @@ describe('Type Tests for API Query Integration', () => {
       });
 
       const definition = { ping: noDataEndpoint };
+      const pingConfig = defineAPIQueryKeys(definition, {});
       const { useAPIQuery: pingQuery, useAPIMutation: pingMutation } =
-        mountAPIQueryClient(
-          new APIClient(definition, { resolver: async () => null }),
-          new QueryClient(),
-          {},
-        );
+        mountAPIQueryClient({
+          apiClient: new APIClient(definition, { resolver: async () => null }),
+          queryClient: new QueryClient(),
+          queryKeys: pingConfig,
+        });
 
       const query = pingQuery('ping');
       const mutation = pingMutation('ping');
@@ -433,11 +455,12 @@ describe('Type Tests for API Query Integration', () => {
       });
 
       const unionDef = { getUnion: unionEndpoint };
-      const { useAPIQuery: unionQuery } = mountAPIQueryClient(
-        new APIClient(unionDef, { resolver: async () => ({}) }),
-        new QueryClient(),
-        {},
-      );
+      const unionConfig = defineAPIQueryKeys(unionDef, {});
+      const { useAPIQuery: unionQuery } = mountAPIQueryClient({
+        apiClient: new APIClient(unionDef, { resolver: async () => ({}) }),
+        queryClient: new QueryClient(),
+        queryKeys: unionConfig,
+      });
 
       const query = unionQuery('getUnion', {
         data: { type: 'a' },

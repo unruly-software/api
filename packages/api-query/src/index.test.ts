@@ -2,7 +2,7 @@ import { QueryClient } from '@tanstack/react-query';
 import { APIClient, defineAPI } from '@unruly-software/api-client';
 import { describe, expectTypeOf, it } from 'vitest';
 import z from 'zod';
-import { mountAPIQueryClient } from '.';
+import { defineAPIQueryKeys, mountAPIQueryClient, queryKey } from '.';
 
 const api = defineAPI();
 
@@ -16,18 +16,12 @@ const definition = {
     metadata: {},
     request: null,
     response: null,
-    apiQuery: {
-      queryKey: () => ['health'],
-    },
   }),
 
   getUser: api.defineEndpoint({
     metadata: {},
     request: z.object({ userId: z.number().transform((n) => n.toString()) }),
     response: UserSchema,
-    apiQuery: {
-      queryKey: (request: any) => ['user', request.userId],
-    },
   }),
 
   createUser: api.defineEndpoint({
@@ -37,16 +31,22 @@ const definition = {
   }),
 };
 
+const config = defineAPIQueryKeys(definition, {
+  health: () => queryKey('health'),
+  getUser: (request) => queryKey('user', request?.userId),
+});
+
 const qc = new QueryClient();
-const { useAPIQuery, useAPIMutation } = mountAPIQueryClient(
-  new APIClient(definition, { resolver: null as any }),
-  qc,
-  {
+const { useAPIQuery, useAPIMutation } = mountAPIQueryClient({
+  apiClient: new APIClient(definition, { resolver: null as any }),
+  queryClient: qc,
+  queryKeys: config,
+  endpoints: {
     createUser: {
       invalidates: ({ response }) => [['user', response.userId]],
     },
   },
-);
+});
 
 describe('react-query integration', () => {
   it.skip(`should pass type tests for ${useAPIQuery.name}`, () => {
