@@ -3,6 +3,8 @@ import path, { dirname } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { openApiDocument } from './generate-openapi';
 
+// biome-ignore lint/suspicious/noTsIgnore: The root TSC config is not set to compile this.
+// @ts-ignore The root TSC config is not set to compile this.
 const __dirname = dirname(fileURLToPath(import.meta.url));
 
 async function createDocsHTML() {
