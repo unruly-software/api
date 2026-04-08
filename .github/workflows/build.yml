@@ -36,3 +36,8 @@ jobs:
 
       - name: Run CI
         run: yarn ci
+
+      - name: Upload coverage to Coveralls
+        uses: coverallsapp/github-action@v2
+        with:
+          file: ./coverage/lcov.info

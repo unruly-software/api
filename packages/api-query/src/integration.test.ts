@@ -1,40 +1,29 @@
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { renderHook, waitFor } from '@testing-library/react';
 import {
-  APIClient,
   type APIEndpointDefinitions,
   defineAPI,
 } from '@unruly-software/api-client';
 import React from 'react';
-import { beforeEach, describe, expect, it, type Mock, vi } from 'vitest';
+import { beforeEach, describe, expect, it, vi } from 'vitest';
 import z from 'zod';
-import { mountAPIQueryClient } from './index';
+import { defineAPIQueryKeys, mountAPIQueryClient, queryKey } from './index';
+import {
+  createTestEnv,
+  PostSchema,
+  type TestEnv,
+  UserSchema,
+} from './testHelpers';
 
 const api = defineAPI<{
   path: string;
   method: 'GET' | 'POST' | 'PUT' | 'DELETE';
 }>();
 
-const UserSchema = z.object({
-  id: z.number(),
-  name: z.string(),
-  email: z.string().email(),
-});
-
-const PostSchema = z.object({
-  id: z.number(),
-  title: z.string(),
-  content: z.string(),
-  authorId: z.number(),
-});
-
 const testDefinition = {
   getUser: api.defineEndpoint({
     request: z.object({ userId: z.number() }),
     response: UserSchema,
-    apiQuery: {
-      queryKey: (request: any) => ['user', request?.userId] as const,
-    },
     metadata: { path: '/users/:id', method: 'GET' },
   }),
 
@@ -42,9 +31,6 @@ const testDefinition = {
     metadata: { path: '/users', method: 'GET' },
     request: null,
     response: z.array(UserSchema),
-    apiQuery: {
-      queryKey: () => ['users'] as const,
-    },
   }),
 
   getUserPosts: api.defineEndpoint({
@@ -91,45 +77,29 @@ const testDefinition = {
   }),
 } satisfies APIEndpointDefinitions;
 
+const config = defineAPIQueryKeys(testDefinition, {
+  getUser: (request) => queryKey('user', request?.userId),
+  getUsers: () => queryKey('users'),
+});
+
 describe('Integration Tests', () => {
-  let queryClient: QueryClient;
-  let mockResolver: Mock;
-  let apiClient: APIClient<typeof testDefinition>;
-  let wrapper: React.ComponentType<{ children: React.ReactNode }>;
+  let queryClient: TestEnv<typeof testDefinition>['queryClient'];
+  let mockResolver: TestEnv<typeof testDefinition>['mockResolver'];
+  let apiClient: TestEnv<typeof testDefinition>['apiClient'];
+  let wrapper: TestEnv<typeof testDefinition>['wrapper'];
 
   beforeEach(() => {
-    queryClient = new QueryClient({
-      defaultOptions: {
-        queries: {
-          retry: false,
-          staleTime: 0,
-        },
-        mutations: {
-          retry: false,
-        },
-      },
-    });
-
-    mockResolver = vi.fn();
-    apiClient = new APIClient(testDefinition, { resolver: mockResolver });
-
-    wrapper = ({ children }: { children: React.ReactNode }) =>
-      React.createElement(
-        QueryClientProvider,
-        { client: queryClient },
-        children,
-      );
+    ({ queryClient, mockResolver, apiClient, wrapper } =
+      createTestEnv(testDefinition));
   });
 
   describe('useAPIQuery Hook Integration', () => {
     it('should fetch data successfully with basic configuration', async () => {
-      const config = {};
-
-      const { useAPIQuery } = mountAPIQueryClient(
+      const { useAPIQuery } = mountAPIQueryClient({
         apiClient,
         queryClient,
-        config,
-      );
+        queryKeys: config,
+      });
 
       const userData = { id: 1, name: 'John Doe', email: 'john@example.com' };
       mockResolver.mockResolvedValue(userData);
@@ -139,21 +109,17 @@ describe('Integration Tests', () => {
         { wrapper },
       );
 
-      // Initially loading
       expect(result.current.isLoading).toBe(true);
       expect(result.current.data).toBeUndefined();
 
-      // Wait for data to load
       await waitFor(() => {
         expect(result.current.isLoading).toBe(false);
       });
 
-      // Verify successful fetch
       expect(result.current.data).toEqual(userData);
       expect(result.current.isError).toBe(false);
       expect(result.current.error).toBeNull();
 
-      // Verify resolver was called correctly
       expect(mockResolver).toHaveBeenCalledWith({
         endpoint: 'getUser',
         definition: expect.objectContaining({
@@ -167,13 +133,11 @@ describe('Integration Tests', () => {
     });
 
     it('should handle queries with no request data', async () => {
-      const config = {};
-
-      const { useAPIQuery } = mountAPIQueryClient(
+      const { useAPIQuery } = mountAPIQueryClient({
         apiClient,
         queryClient,
-        config,
-      );
+        queryKeys: config,
+      });
 
       const usersData = [
         { id: 1, name: 'John Doe', email: 'john@example.com' },
@@ -199,24 +163,30 @@ describe('Integration Tests', () => {
     });
 
     it('should handle conditional queries (data: null)', async () => {
-      const { useAPIQuery } = mountAPIQueryClient(apiClient, queryClient, {});
+      const { useAPIQuery } = mountAPIQueryClient({
+        apiClient,
+        queryClient,
+        queryKeys: config,
+      });
 
       const { result } = renderHook(
         () => useAPIQuery('getUser', { data: null }),
         { wrapper },
       );
 
-      // Query should be disabled
       expect(result.current.isLoading).toBe(false);
       expect(result.current.data).toBeUndefined();
       expect(result.current.fetchStatus).toBe('idle');
 
-      // Resolver should not be called
       expect(mockResolver).not.toHaveBeenCalled();
     });
 
     it('should handle query overrides', async () => {
-      const { useAPIQuery } = mountAPIQueryClient(apiClient, queryClient, {});
+      const { useAPIQuery } = mountAPIQueryClient({
+        apiClient,
+        queryClient,
+        queryKeys: config,
+      });
 
       const userData = { id: 1, name: 'John Doe', email: 'john@example.com' };
       mockResolver.mockResolvedValue(userData);
@@ -239,13 +209,16 @@ describe('Integration Tests', () => {
 
       expect(result.current.data).toEqual(userData);
 
-      // Check that staleTime was applied
       const queryState = queryClient.getQueryState(['user', 1]);
       expect(queryState?.dataUpdatedAt).toBeDefined();
     });
 
     it('should handle query errors', async () => {
-      const { useAPIQuery } = mountAPIQueryClient(apiClient, queryClient, {});
+      const { useAPIQuery } = mountAPIQueryClient({
+        apiClient,
+        queryClient,
+        queryKeys: config,
+      });
 
       const error = new Error('Network error');
       mockResolver.mockRejectedValue(error);
@@ -264,7 +237,11 @@ describe('Integration Tests', () => {
     });
 
     it('should handle complex nested responses', async () => {
-      const { useAPIQuery } = mountAPIQueryClient(apiClient, queryClient, {});
+      const { useAPIQuery } = mountAPIQueryClient({
+        apiClient,
+        queryClient,
+        queryKeys: config,
+      });
 
       const postsData = {
         posts: [
@@ -296,9 +273,14 @@ describe('Integration Tests', () => {
 
   describe('useAPIMutation Hook Integration', () => {
     it('should execute mutations successfully', async () => {
-      const { useAPIMutation } = mountAPIQueryClient(apiClient, queryClient, {
-        createUser: {
-          invalidates: ({ response }) => [['users'], ['user', response.id]],
+      const { useAPIMutation } = mountAPIQueryClient({
+        apiClient,
+        queryClient,
+        queryKeys: config,
+        endpoints: {
+          createUser: {
+            invalidates: ({ response }) => [['users'], ['user', response.id]],
+          },
         },
       });
 
@@ -309,14 +291,11 @@ describe('Integration Tests', () => {
         wrapper,
       });
 
-      // Initially idle
       expect(result.current.isPending).toBe(false);
       expect(result.current.data).toBeUndefined();
 
-      // Execute mutation
       result.current.mutate({ name: 'Bob Wilson', email: 'bob@example.com' });
 
-      // Wait for mutation to complete
       await waitFor(() => {
         expect(result.current.isPending).toBe(false);
       });
@@ -334,11 +313,11 @@ describe('Integration Tests', () => {
     });
 
     it('should execute mutations with mutateAsync', async () => {
-      const { useAPIMutation } = mountAPIQueryClient(
+      const { useAPIMutation } = mountAPIQueryClient({
         apiClient,
         queryClient,
-        {},
-      );
+        queryKeys: config,
+      });
 
       const updatedUser = {
         id: 1,
@@ -359,18 +338,17 @@ describe('Integration Tests', () => {
 
       expect(data).toEqual(updatedUser);
 
-      // Wait for the mutation state to update
       await waitFor(() => {
         expect(result.current.isSuccess).toBe(true);
       });
     });
 
     it('should handle mutations with no response data', async () => {
-      const { useAPIMutation } = mountAPIQueryClient(
+      const { useAPIMutation } = mountAPIQueryClient({
         apiClient,
         queryClient,
-        {},
-      );
+        queryKeys: config,
+      });
 
       mockResolver.mockResolvedValue(null);
 
@@ -389,11 +367,11 @@ describe('Integration Tests', () => {
     });
 
     it('should handle mutation errors', async () => {
-      const { useAPIMutation } = mountAPIQueryClient(
+      const { useAPIMutation } = mountAPIQueryClient({
         apiClient,
         queryClient,
-        {},
-      );
+        queryKeys: config,
+      });
 
       const error = new Error('Creation failed');
       mockResolver.mockRejectedValue(error);
@@ -414,11 +392,11 @@ describe('Integration Tests', () => {
     });
 
     it('should handle mutation overrides', async () => {
-      const { useAPIMutation } = mountAPIQueryClient(
+      const { useAPIMutation } = mountAPIQueryClient({
         apiClient,
         queryClient,
-        {},
-      );
+        queryKeys: config,
+      });
 
       const onSuccess = vi.fn();
       const onError = vi.fn();
@@ -461,21 +439,19 @@ describe('Integration Tests', () => {
 
   describe('Cache Integration Tests', () => {
     it('should integrate query cache with mutations', async () => {
-      const config = {
-        updateUser: {
-          invalidates: ({ response }: { response: any }) => [
-            ['user', response.id],
-          ],
-        },
-      };
-
-      const { useAPIQuery, useAPIMutation } = mountAPIQueryClient(
+      const { useAPIQuery, useAPIMutation } = mountAPIQueryClient({
         apiClient,
         queryClient,
-        config,
-      );
+        queryKeys: config,
+        endpoints: {
+          updateUser: {
+            invalidates: ({ response }) => [
+              config.getKeyForEndpoint('getUser', { userId: response.id }),
+            ],
+          },
+        },
+      });
 
-      // First, fetch a user
       const originalUser = {
         id: 1,
         name: 'John Doe',
@@ -492,7 +468,6 @@ describe('Integration Tests', () => {
         expect(queryResult.current.data).toEqual(originalUser);
       });
 
-      // Now update the user
       const updatedUser = {
         id: 1,
         name: 'John Updated',
@@ -511,26 +486,24 @@ describe('Integration Tests', () => {
         expect(mutationResult.current.isSuccess).toBe(true);
       });
 
-      // The query should be invalidated and refetch
       await waitFor(() => {
         expect(queryResult.current.data).toEqual(updatedUser);
       });
     });
 
     it('should handle cache invalidation on errors', async () => {
-      const config = {
-        updateUser: {
-          errorInvalidates: ({ request }: { request: any }) => [
-            ['user', request.userId],
-          ],
-        },
-      };
-
-      const { useAPIQuery, useAPIMutation } = mountAPIQueryClient(
+      const { useAPIQuery, useAPIMutation } = mountAPIQueryClient({
         apiClient,
         queryClient,
-        config,
-      );
+        queryKeys: config,
+        endpoints: {
+          updateUser: {
+            errorInvalidates: ({ request }) => [
+              config.getKeyForEndpoint('getUser', { userId: request.userId }),
+            ],
+          },
+        },
+      });
 
       // Setup initial data
       const originalUser = {
@@ -549,7 +522,6 @@ describe('Integration Tests', () => {
         expect(queryResult.current.data).toEqual(originalUser);
       });
 
-      // Now make update fail
       mockResolver.mockRejectedValue(new Error('Update failed'));
 
       const { result: mutationResult } = renderHook(
@@ -565,8 +537,6 @@ describe('Integration Tests', () => {
         expect(mutationResult.current.isError).toBe(true);
       });
 
-      // The error invalidation should trigger a refetch
-      // Reset the resolver to return valid data for the refetch
       mockResolver.mockResolvedValue(originalUser);
 
       await waitFor(() => {
@@ -577,19 +547,18 @@ describe('Integration Tests', () => {
 
   describe('Real React Query Integration Scenarios', () => {
     it('should properly integrate with React Query staleTime', async () => {
-      const config = {
-        getUser: {
-          queryOptions: {
-            staleTime: 60000, // 1 minute
-          },
-        },
-      };
-
-      const { useAPIQuery } = mountAPIQueryClient(
+      const { useAPIQuery } = mountAPIQueryClient({
         apiClient,
         queryClient,
-        config,
-      );
+        queryKeys: config,
+        endpoints: {
+          getUser: {
+            queryOptions: {
+              staleTime: 60000, // 1 minute
+            },
+          },
+        },
+      });
 
       const userData = { id: 1, name: 'John Doe', email: 'john@example.com' };
       mockResolver.mockResolvedValue(userData);
@@ -603,13 +572,10 @@ describe('Integration Tests', () => {
         expect(result.current.data).toEqual(userData);
       });
 
-      // Clear mock call history
       mockResolver.mockClear();
 
-      // Rerender should not trigger new fetch due to staleTime
       rerender();
 
-      // Wait a bit and verify no new calls
       await new Promise((resolve) => setTimeout(resolve, 100));
       expect(mockResolver).not.toHaveBeenCalled();
     });
@@ -631,7 +597,11 @@ describe('Integration Tests', () => {
           children,
         );
 
-      const { useAPIQuery } = mountAPIQueryClient(apiClient, queryClient, {});
+      const { useAPIQuery } = mountAPIQueryClient({
+        apiClient,
+        queryClient,
+        queryKeys: config,
+      });
 
       let callCount = 0;
       mockResolver.mockImplementation(() => {
@@ -647,7 +617,6 @@ describe('Integration Tests', () => {
         { wrapper },
       );
 
-      // Should eventually succeed after retries
       await waitFor(
         () => {
           expect(result.current.isSuccess).toBe(true);
@@ -664,19 +633,18 @@ describe('Integration Tests', () => {
     });
 
     it('should handle real background refetching', async () => {
-      const config = {
-        getUser: {
-          queryOptions: {
-            refetchInterval: 100, // Very short for testing
-          },
-        },
-      };
-
-      const { useAPIQuery } = mountAPIQueryClient(
+      const { useAPIQuery } = mountAPIQueryClient({
         apiClient,
         queryClient,
-        config,
-      );
+        queryKeys: config,
+        endpoints: {
+          getUser: {
+            queryOptions: {
+              refetchInterval: 100, // Very short for testing
+            },
+          },
+        },
+      });
 
       let callCount = 0;
       mockResolver.mockImplementation(() => {
@@ -689,12 +657,10 @@ describe('Integration Tests', () => {
         { wrapper },
       );
 
-      // Wait for initial load
       await waitFor(() => {
         expect(result.current.data?.name).toBe('John 1');
       });
 
-      // Wait for background refetch
       await waitFor(
         () => {
           expect(result.current.data?.name).toBe('John 2');

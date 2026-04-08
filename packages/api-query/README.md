@@ -11,549 +11,418 @@
 
 [![NPM Version](https://img.shields.io/npm/v/@unruly-software/api-query?style=flat&colorA=18181B&colorB=28CF8D)](https://www.npmjs.com/package/@unruly-software/api-query)
 [![License](https://img.shields.io/github/license/unruly-software/api?style=flat&colorA=18181B&colorB=28CF8D)](https://github.com/unruly-software/api/blob/main/LICENSE)
+[![Coverage Status](https://img.shields.io/coverallsCoverage/github/unruly-software/api?branch=master&style=flat&colorA=18181B&colorB=28CF8D)](https://coveralls.io/github/unruly-software/api?branch=master)
 [![Bundle Size](https://img.shields.io/bundlephobia/minzip/@unruly-software/api-query?style=flat&colorA=18181B&colorB=28CF8D&label=bundle%20size)](https://bundlephobia.com/package/@unruly-software/api-query)
 [![TypeScript](https://img.shields.io/badge/TypeScript-Ready-3178c6.svg?style=flat&colorA=18181B&colorB=3178c6)](https://www.typescriptlang.org/)
 [![Downloads](https://img.shields.io/npm/dm/@unruly-software/api-query?style=flat&colorA=18181B&colorB=28CF8D)](https://www.npmjs.com/package/@unruly-software/api-query)
 
-React Query integration for @unruly-software/api-client that provides type-safe
-hooks, automatic cache invalidation, and declarative data fetching. Transform
-your API definitions into powerful React Query hooks with full TypeScript
-inference.
+React Query integration for `@unruly-software/api-client`. Endpoint
+definitions become typed `useAPIQuery` and `useAPIMutation` hooks with
+declarative cache key resolvers and event-driven invalidation.
 
-## Quick Start
+## Table of Contents
 
-Install the package:
+- [Installation](#installation)
+- [Quick Start](#quick-start)
+- [Defining Query Keys](#defining-query-keys)
+- [Mounting the Hooks](#mounting-the-hooks)
+- [Strict and Free-Form Modes](#strict-and-free-form-modes)
+- [Per-Endpoint Configuration](#per-endpoint-configuration)
+- [Hooks](#hooks)
+- [API Reference](#api-reference)
+- [License](#license)
+
+## Installation
 
 ```bash
-npm install @unruly-software/api-query @unruly-software/api-client @tanstack/react-query zod
-# or
 yarn add @unruly-software/api-query @unruly-software/api-client @tanstack/react-query zod
 ```
 
-Set up your API and mount the query client:
+`@unruly-software/api-client` and `@tanstack/react-query` are peer
+dependencies.
+
+## Quick Start
 
 ```typescript
 import { APIClient, defineAPI } from '@unruly-software/api-client';
-import { mountAPIQueryClient } from '@unruly-software/api-query';
+import {
+  defineAPIQueryKeys,
+  mountAPIQueryClient,
+  queryKey,
+} from '@unruly-software/api-query';
 import { QueryClient } from '@tanstack/react-query';
 import z from 'zod';
 
-// Define your API (same as api-client)
-const api = defineAPI<{
-  path: string;
-  method: 'GET' | 'POST' | 'PUT' | 'DELETE';
-}>();
+const api = defineAPI<{ method: string; path: string }>();
 
-const apiDefinition = {
+const userAPI = {
   getUser: api.defineEndpoint({
-    request: z.object({
-      userId: z.number(),
-    }),
-    response: z.object({
-      id: z.number(),
-      name: z.string(),
-      email: z.string().email(),
-    }),
-    metadata: {
-      method: 'GET',
-      path: '/users/:userId',
-    },
+    request: z.object({ userId: z.number() }),
+    response: z.object({ id: z.number(), name: z.string() }),
+    metadata: { method: 'GET', path: '/users/:userId' },
   }),
-
   updateUser: api.defineEndpoint({
-    request: z.object({
-      userId: z.number(),
-      name: z.string(),
-      email: z.string().email(),
-    }),
-    response: z.object({
-      id: z.number(),
-      name: z.string(),
-      email: z.string(),
-    }),
-    metadata: {
-      method: 'PUT',
-      path: '/users/:userId',
-    },
+    request: z.object({ userId: z.number(), name: z.string() }),
+    response: z.object({ id: z.number(), name: z.string() }),
+    metadata: { method: 'PUT', path: '/users/:userId' },
   }),
 };
 
-// Create API client and Query client
-const apiClient = new APIClient(apiDefinition, {
-  resolver: async ({ definition, request }) => {
-    const response = await fetch(`https://api.example.com${definition.metadata.path}`, {
-      method: definition.metadata.method,
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify(request),
-    });
-    return response.json();
+const apiClient = new APIClient(userAPI, { resolver: /* see api-client docs */ });
+const queryClient = new QueryClient();
+
+const queryKeys = defineAPIQueryKeys(userAPI, {
+  getUser: (req) => queryKey('users', req?.userId),
+});
+
+const { useAPIQuery, useAPIMutation } = mountAPIQueryClient({
+  apiClient,
+  queryClient,
+  queryKeys,
+  endpoints: {
+    updateUser: {
+      invalidates: ({ response }) => [
+        queryKeys.getKeyForEndpoint('getUser', { userId: response.id }),
+      ],
+    },
   },
 });
 
-const queryClient = new QueryClient();
-
-// Mount the query hooks
-const { useAPIQuery, useAPIMutation } = mountAPIQueryClient(
-  apiClient,
-  queryClient,
-  {
-    getUser: {
-      queryKey: ({ request }) => ['user', request?.userId],
-    },
-    updateUser: {
-      invalidates: ({ response }) => [['user', response.id]],
-    },
-  }
-);
+function UserProfile({ userId }: { userId: number }) {
+  const { data } = useAPIQuery('getUser', { data: { userId } });
+  return data ? <h1>{data.name}</h1> : null;
+}
 ```
 
-Use in your React components:
+## Defining Query Keys
+
+`defineAPIQueryKeys(api, queryKeys)` registers a cache key resolver for each
+endpoint and returns a bundle that `mountAPIQueryClient` consumes. Endpoints
+omitted from the map fall back to `[endpointName, request | undefined]`.
+
+```typescript
+const queryKeys = defineAPIQueryKeys(userAPI, {
+  getUser:     (req) => queryKey('users', req?.userId),
+  searchUsers: (req) => queryKey('users', 'search', req?.query),
+});
+```
+
+The `queryKey(...)` helper is a runtime no-op identity function. Wrap each
+resolver's tuple in it so TypeScript captures the literal shape — without
+the wrapper, contextual typing widens the literal away and strict mode
+collapses to `QueryKeyItem[]`.
+
+The returned bundle exposes:
+
+| Member | Description |
+|---|---|
+| `queryKeys.api` | The api definition the bundle was built against. |
+| `queryKeys.queryKeys` | The raw resolver map. |
+| `queryKeys.getKey(first, ...rest)` | Builds a key prefix from positional arguments. The first argument is constrained to the registered first-position literals, so editor autocomplete narrows the suggestions. |
+| `queryKeys.getKeyForEndpoint(endpoint, request?)` | Resolves the key for a specific endpoint by passing the endpoint's request shape. Falls back to the default `[endpointName, request]` when no resolver is registered. |
+
+Both helpers return the literal tuple they constructed, which makes them safe
+to pass directly to `queryClient.invalidateQueries`:
+
+```typescript
+queryClient.invalidateQueries({ queryKey: queryKeys.getKey('users') });
+queryClient.invalidateQueries({ queryKey: queryKeys.getKey('users', 5) });
+queryClient.invalidateQueries({
+  queryKey: queryKeys.getKeyForEndpoint('getUser', { userId: 5 }),
+});
+```
+
+## Mounting the Hooks
+
+`mountAPIQueryClient(args)` accepts a single configuration object and returns
+the hook pair. Per-endpoint behavior lives under `endpoints[K]`. Because
+`queryKeys` is fully constructed by the time this function runs, invalidation
+callbacks can call its helpers directly.
+
+```typescript
+const { useAPIQuery, useAPIMutation } = mountAPIQueryClient({
+  apiClient,
+  queryClient,
+  queryKeys,
+  endpoints: {
+    updateUser: {
+      invalidates: ({ response }) => [
+        queryKeys.getKeyForEndpoint('getUser', { userId: response.id }),
+      ],
+    },
+  },
+});
+```
+
+## Strict and Free-Form Modes
+
+`mountAPIQueryClient` operates in two modes. The default is free-form;
+strict mode is opt-in via a type parameter.
+
+### Free-form (default)
+
+In free-form mode, `invalidates` and `errorInvalidates` callbacks may return
+any tuple of `QueryKeyItem` values. TypeScript still infers the request and
+response types from the endpoint's Zod schemas, so callback inputs are fully
+typed — only the return shape is unconstrained.
+
+```typescript
+mountAPIQueryClient({
+  apiClient,
+  queryClient,
+  queryKeys,
+  endpoints: {
+    updateUser: {
+      invalidates: ({ response }) => [
+        ['users', response.id],
+        ['users'],
+      ],
+    },
+  },
+});
+```
+
+Use free-form mode when migrating an existing codebase, when invalidating
+cache entries that aren't owned by `defineAPIQueryKeys`, or when the strict
+type-checking adds friction without benefit.
+
+### Strict
+
+Strict mode is enabled by passing `<typeof api, QueryKeysFor<typeof queryKeys>>`
+as type parameters. `QueryKeysFor<...>` returns the union of full resolved
+keys; the library expands every non-empty prefix internally when type-checking
+`invalidates` and `errorInvalidates`, so both full keys and prefixes of
+registered keys are accepted.
+
+```typescript
+import {
+  mountAPIQueryClient,
+  type QueryKeysFor,
+} from '@unruly-software/api-query';
+
+mountAPIQueryClient<typeof userAPI, QueryKeysFor<typeof queryKeys>>({
+  apiClient,
+  queryClient,
+  queryKeys,
+  endpoints: {
+    updateUser: {
+      invalidates: ({ response }) => [
+        queryKeys.getKeyForEndpoint('getUser', { userId: response.id }),
+        queryKeys.getKey('users'),
+      ],
+    },
+  },
+});
+```
+
+Wrong-shaped tuples become compile errors:
+
+```typescript
+endpoints: {
+  updateUser: {
+    invalidates: () => [
+      // Type error — 'unknown-prefix' is not a registered first position
+      ['unknown-prefix', 5],
+
+      // Type error — 'users' expects number | undefined as the second
+      // element, not a string
+      ['users', 'not-a-number'],
+
+      // Type error — 'users' has at most two elements
+      ['users', 5, 'extra'],
+    ],
+  },
+}
+```
+
+Use strict mode when cache keys are entirely owned by `defineAPIQueryKeys`
+and you want refactoring a key shape to surface every consumer at compile
+time.
+
+#### Mixing in custom keys
+
+Because `QueryKeysFor<...>` returns the union of full resolved keys (rather
+than pre-expanding to prefixes), it composes cleanly with custom cache key
+shapes via a union allowing integration with existing queries or libraries:
+
+```typescript
+type CustomKeys = ['my-feature', string] | ['analytics', number];
+
+mountAPIQueryClient<
+  typeof userAPI,
+  QueryKeysFor<typeof queryKeys> | CustomKeys
+>({
+  apiClient,
+  queryClient,
+  queryKeys,
+  endpoints: {
+    updateUser: {
+      invalidates: ({ response }) => [
+        queryKeys.getKeyForEndpoint('getUser', { userId: response.id }),
+        ['my-feature', 'related-cache-bucket'],
+        ['analytics'], // ← prefix of ['analytics', number] is also accepted
+      ],
+    },
+  },
+});
+```
+
+Inline tuple types work too:
+
+```typescript
+mountAPIQueryClient<
+  typeof userAPI,
+  QueryKeysFor<typeof queryKeys> | ['my', 'custom', 'key']
+>({ /* ... */ });
+```
+
+## Per-Endpoint Configuration
+
+Each entry under `endpoints[K]` accepts four optional fields:
+
+```typescript
+endpoints: {
+  updateUser: {
+    invalidates: ({ request, response }) => [
+      queryKeys.getKeyForEndpoint('getUser', { userId: response.id }),
+    ],
+
+    errorInvalidates: ({ request, error }) => [
+      queryKeys.getKeyForEndpoint('getUser', { userId: request.userId }),
+    ],
+
+    queryOptions: {
+      staleTime: 60_000,
+      gcTime: 5 * 60_000,
+    },
+
+    mutationOptions: {
+      retry: 2,
+    },
+  },
+}
+```
+
+| Field | Description |
+|---|---|
+| `invalidates` | Fires after `apiClient.$succeeded`. Returns cache keys to invalidate. |
+| `errorInvalidates` | Fires after `apiClient.$failed`. Returns cache keys to invalidate. |
+| `queryOptions` | Default React Query options applied to every `useAPIQuery` call against this endpoint. Merged with — and overridden by — call-site `overrides`. `queryFn` and `queryKey` are managed by the bundle. |
+| `mutationOptions` | Default React Query options applied to every `useAPIMutation` call against this endpoint. Merged with — and overridden by — call-site `overrides`. `mutationFn` is managed by the bundle. |
+
+## Hooks
+
+### `useAPIQuery`
 
 ```tsx
 function UserProfile({ userId }: { userId: number }) {
-  // Type-safe query with automatic cache management
-  const { data: user, isLoading, error } = useAPIQuery('getUser', {
-    data: { userId }
+  const { data, isLoading, error } = useAPIQuery('getUser', {
+    data: { userId },
+    overrides: { staleTime: 60_000 },
   });
 
-  // Type-safe mutation with automatic invalidation
-  const updateUserMutation = useAPIMutation('updateUser');
-
-  const handleUpdate = async (name: string, email: string) => {
-    await updateUserMutation.mutateAsync({
-      userId,
-      name,
-      email,
-    });
-    // Cache automatically invalidated via configuration
-  };
-
-  if (isLoading) return <div>Loading...</div>;
-  if (error) return <div>Error: {error.message}</div>;
-  if (!user) return null;
-
-  return (
-    <div>
-      <h1>{user.name}</h1>
-      <p>{user.email}</p>
-      <button
-      type="button"
-        onClick={() => handleUpdate(user.name, user.email)}
-        disabled={updateUserMutation.isPending}
-      >
-        Update User
-      </button>
-    </div>
-  );
+  if (isLoading) return <Spinner />;
+  if (error) return <ErrorMessage error={error} />;
+  return data ? <h1>{data.name}</h1> : null;
 }
 ```
 
-## Core Concepts
-
-### React Query Integration
-
-This package creates type-safe React Query hooks from your API definitions:
-
-- **Queries**: `useAPIQuery` for data fetching with caching and background updates
-- **Mutations**: `useAPIMutation` for data modifications with optimistic updates
-- **Cache Management**: Automatic invalidation and updates based on your configuration
-- **Type Safety**: Full TypeScript inference from your Zod schemas
-
-### Query Configuration
-
-Configure query behavior and cache management per endpoint:
-
-```typescript
-const config = {
-  getUser: {
-    // Custom query key generation
-    queryKey: ({ request }) => ['user', request?.userId],
-
-    // Query options (React Query options)
-    queryOptions: {
-      staleTime: 5 * 60 * 1000, // 5 minutes
-      cacheTime: 10 * 60 * 1000, // 10 minutes
-    },
-  },
-
-  updateUser: {
-    // Invalidate related queries on success
-    invalidates: ({ response }) => [
-      ['user', response.id],
-      ['users'], // Invalidate user list
-    ],
-
-    // Update cache directly without refetch
-    updateCacheOnSuccess: ({ response }) => [
-      [['user', response.id], response],
-    ],
-
-    // Mutation options
-    mutationOptions: {
-      onSuccess: () => {
-        toast.success('User updated!');
-      },
-    },
-  },
-};
-```
-
-### Cache Invalidation
-
-Automatic cache invalidation keeps your UI in sync:
-
-- **On Success**: Invalidate queries when mutations succeed
-- **On Error**: Optionally invalidate queries when mutations fail
-- **Direct Updates**: Update cache directly for optimistic updates
-
-### Error Handling
-
-Errors are handled through React Query's built-in error system:
-
-```typescript
-const { data, error, isError } = useAPIQuery('getUser', {
-  data: { userId: 123 }
-});
-
-if (isError) {
-  // error is typed as Error and contains validation/network errors
-  console.error('Query failed:', error.message);
-}
-```
-
-## Examples
-
-### Basic Setup with Provider
+Endpoints whose request type is `null` make `data` optional; everything else
+requires it. Pass `data: null` to disable the query without changing its
+identity:
 
 ```tsx
-import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
-
-function App() {
-  const queryClient = new QueryClient();
-
-  return (
-    <QueryClientProvider client={queryClient}>
-      <UserList />
-    </QueryClientProvider>
-  );
-}
+useAPIQuery('getUser', { data: userId === null ? null : { userId } });
 ```
 
-### Query with Conditional Fetching
+`overrides` accepts every React Query `useQuery` option except `queryFn` and
+`queryKey`.
 
-```typescript
-function UserProfile({ userId }: { userId?: number }) {
-  // Query only runs when userId is provided
-  const { data: user } = useAPIQuery('getUser', {
-    data: userId ? { userId } : null, // null disables the query
+### `useAPIMutation`
+
+```tsx
+function EditUser({ user }: { user: { id: number } }) {
+  const updateUser = useAPIMutation('updateUser', {
     overrides: {
-      enabled: Boolean(userId), // Additional condition
-    },
-  });
-
-  return user ? <div>{user.name}</div> : null;
-}
-```
-
-### Mutations with Optimistic Updates
-
-```typescript
-const config = {
-  updateUser: {
-    // Directly update cache for immediate UI feedback
-    updateCacheOnSuccess: ({ request, response }) => [
-      [['user', request.userId], response],
-    ],
-
-    // Invalidate list queries to refetch fresh data
-    invalidates: ({ response }) => [
-      ['users'], // Refetch user list
-    ],
-  },
-};
-
-const { useAPIMutation } = mountAPIQueryClient(apiClient, queryClient, config);
-
-function EditUser({ user }: { user: User }) {
-  const updateUserMutation = useAPIMutation('updateUser', {
-    overrides: {
-      onMutate: async (newUser) => {
-        // Cancel ongoing queries
-        await queryClient.cancelQueries({ queryKey: ['user', user.id] });
-
-        // Optimistically update cache
-        const previous = queryClient.getQueryData(['user', user.id]);
-        queryClient.setQueryData(['user', user.id], newUser);
-
-        return { previous };
-      },
-      onError: (err, newUser, context) => {
-        // Rollback on error
-        queryClient.setQueryData(['user', user.id], context?.previous);
-      },
+      onSuccess: (saved) => toast(`Saved ${saved.name}`),
     },
   });
 
   return (
-    <button type="button" onClick={() => updateUserMutation.mutate(updatedUser)}>
-      Save Changes
+    <button
+      type="button"
+      disabled={updateUser.isPending}
+      onClick={() =>
+        updateUser.mutate({ userId: user.id, name: 'New name' })
+      }
+    >
+      Save
     </button>
   );
 }
 ```
 
-### Advanced Cache Management
-
-```typescript
-const config = {
-  deleteUser: {
-    // Remove user from cache and invalidate lists
-    updateCacheOnSuccess: ({ request }) => [
-      [['user', request.userId], undefined], // Remove from cache
-    ],
-    invalidates: () => [
-      ['users'], // Refetch user list
-      ['user-count'], // Update count queries
-    ],
-  },
-
-  createUser: {
-    // Add new user to existing lists
-    invalidates: () => [['users']],
-
-    // Also update cache for specific queries
-    updateCacheOnSuccess: ({ response }) => [
-      [['user', response.id], response],
-    ],
-
-    // Handle errors by invalidating stale data
-    errorInvalidates: () => [['users']],
-  },
-};
-```
-
-### Background Sync and Refetching
-
-```typescript
-function UserList() {
-  const { data: users, refetch } = useAPIQuery('getUsers', {
-    data: null,
-    overrides: {
-      staleTime: 30000, // Consider fresh for 30 seconds
-      cacheTime: 300000, // Keep in cache for 5 minutes
-      refetchOnWindowFocus: true, // Refetch when window gains focus
-      refetchInterval: 60000, // Poll every minute
-    },
-  });
-
-  return (
-    <div>
-      <button type="button" onClick={() => refetch()}>Refresh</button>
-      {users?.map(user => <UserCard key={user.id} user={user} />)}
-    </div>
-  );
-}
-```
-
-### Error Handling and Retry Logic
-
-```typescript
-function UserData({ userId }: { userId: number }) {
-  const {
-    data: user,
-    error,
-    isError,
-    isLoading,
-    failureCount,
-    refetch
-  } = useAPIQuery('getUser', {
-    data: { userId },
-    overrides: {
-      retry: (failureCount, error) => {
-        // Retry up to 3 times for network errors only
-        if (failureCount < 3 && error.message.includes('network')) {
-          return true;
-        }
-        return false;
-      },
-      retryDelay: (attemptIndex) => Math.min(1000 * 2 ** attemptIndex, 30000),
-    },
-  });
-
-  if (isLoading) return <Spinner />;
-
-  if (isError) {
-    return (
-      <ErrorBoundary>
-        <p>Failed to load user: {error.message}</p>
-        <button type="button" onClick={() => refetch()}>
-          Retry ({failureCount} attempts)
-        </button>
-      </ErrorBoundary>
-    );
-  }
-
-  return <UserProfile user={user} />;
-}
-```
-
-### Dependent Queries
-
-```typescript
-function UserWithProfile({ userId }: { userId: number }) {
-  // First fetch user
-  const { data: user } = useAPIQuery('getUser', {
-    data: { userId }
-  });
-
-  // Then fetch profile if user is loaded
-  const { data: profile } = useAPIQuery('getUserProfile', {
-    data: user?.id ? { userId: user.id } : null, // Conditional fetching
-  });
-
-  return (
-    <div>
-      {user && <h1>{user.name}</h1>}
-      {profile && <ProfileDetails profile={profile} />}
-    </div>
-  );
-}
-```
+The mutation's `variables` type is the endpoint's request payload; the
+result type is its response. `overrides` accepts every React Query
+`useMutation` option except `mutationFn`.
 
 ## API Reference
 
-### `mountAPIQueryClient<API>(client, queryClient, config)`
+### `defineAPIQueryKeys(api, queryKeys)`
 
-Creates React Query hooks from your API client.
+Registers cache key resolvers and returns a bundle.
 
-**Parameters:**
-- `client: APIClient<API>` - Your API client instance
-- `queryClient: QueryClient` - React Query client instance
-- `config: QueryConfig<API>` - Configuration for each endpoint
-
-**Returns:**
 ```typescript
-{
-  useAPIQuery: APIQueryHook<API>;
+function defineAPIQueryKeys<API, const QUERY_KEYS extends QueryKeysMap<API>>(
+  api: API,
+  queryKeys: QUERY_KEYS,
+): APIQueryConfigDefinition<API, QUERY_KEYS>;
+```
+
+The `<const QUERY_KEYS>` modifier preserves the literal shape of each
+resolver's return value. Resolvers registered for endpoints that don't exist
+on the api are rejected at compile time.
+
+### `queryKey(...key)`
+
+Identity helper that captures literal tuple inference inside resolver
+function bodies.
+
+```typescript
+function queryKey<const T extends readonly QueryKeyItem[]>(...key: T): T;
+```
+
+### `mountAPIQueryClient(args)`
+
+Wires the bundle to a `QueryClient` and returns the hook pair. Pass
+`<typeof api, QueryKeysFor<typeof queryKeys>>` as type parameters for strict
+mode; omit them for free-form mode.
+
+```typescript
+function mountAPIQueryClient<API, KEYS = readonly QueryKeyItem[]>(
+  args: MountAPIQueryClientArgs<API, KEYS>,
+): {
+  useAPIQuery: APIQueryHook<API, KEYS>;
   useAPIMutation: APIMutationHook<API>;
-}
-```
-
-### `useAPIQuery<ENDPOINT>(endpoint, options?)`
-
-Hook for fetching data with React Query.
-
-**Type Parameters:**
-- `ENDPOINT` - Endpoint key from your API definitions
-
-**Parameters:**
-- `endpoint: ENDPOINT` - The endpoint to query
-- `options?: APIQueryOptions<EndpointDefinition>` - Query options
-  - `data: RequestType | null` - Request data (null disables query)
-  - `overrides?: UseQueryOptions` - React Query options to override
-
-**Returns:** `UseQueryResult<ResponseType, Error>`
-
-### `useAPIMutation<ENDPOINT>(endpoint, options?)`
-
-Hook for data mutations with React Query.
-
-**Type Parameters:**
-- `ENDPOINT` - Endpoint key from your API definitions
-
-**Parameters:**
-- `endpoint: ENDPOINT` - The endpoint to mutate
-- `options?: APIMutationOptions<EndpointDefinition>` - Mutation options
-  - `overrides?: UseMutationOptions` - React Query options to override
-
-**Returns:** `UseMutationResult<ResponseType, Error, RequestType>`
-
-### `QueryConfig<API>`
-
-Configuration object for customizing query behavior per endpoint.
-
-```typescript
-type QueryConfig<API> = {
-  [K in keyof API]: {
-    // Custom query key generation
-    queryKey?: (input: { request: RequestType | null }) => QueryKeyItem[];
-
-    // Cache invalidation on success
-    invalidates?: (input: {
-      request: RequestType;
-      response: ResponseType;
-    }) => QueryKeyItem[][];
-
-    // Cache invalidation on error
-    errorInvalidates?: (input: {
-      request: RequestType;
-      error: Error;
-    }) => QueryKeyItem[][];
-
-    // Direct cache updates on success
-    updateCacheOnSuccess?: (input: {
-      request: RequestType;
-      response: ResponseType;
-    }) => [[QueryKeyItem[], unknown]];
-
-    // Default query options
-    queryOptions?: Omit<UseQueryOptions, 'queryFn' | 'queryKey'>;
-
-    // Default mutation options
-    mutationOptions?: Omit<UseMutationOptions, 'mutationFn'>;
-  };
 };
 ```
 
-#### `QueryKeyItem`
+### Type Helpers
 
-Valid types for React Query keys.
-
-```typescript
-type QueryKeyItem = string | number | boolean | object | null | undefined;
-```
-
-### Query Key Generation
-
-Default query keys follow the pattern: `[endpoint, requestData]`
-
-Custom query keys can be configured per endpoint:
-
-```typescript
-const config = {
-  getUser: {
-    queryKey: ({ request }) => ['user', request?.userId],
-  },
-  getUsers: {
-    queryKey: () => ['users'],
-  },
-  getUsersByRole: {
-    queryKey: ({ request }) => ['users', 'by-role', request?.role],
-  },
-};
-```
-
-### Cache Invalidation Strategies
-
-- **Invalidates**: Marks queries as stale and triggers refetch on success
-- **ErrorInvalidates**: Invalidates cache when mutations fail
-
-```typescript
-const config = {
-  updateUser: {
-    // Strategy 1: Invalidate and refetch
-    invalidates: ({ response }) => [
-      ['user', response.id],
-      ['users'],
-    ],
-
-    // Strategy 3: Error handling
-    errorInvalidates: ({ request }) => [
-      ['user', request.userId],
-    ],
-  },
-};
-```
+| Type | Description |
+|---|---|
+| `QueryKeysFor<typeof bundle>` | Union of every cache key the bundle can produce. Pass as the second type parameter to `mountAPIQueryClient` to enable strict mode. |
+| `QueryKeyForEndpoint<typeof bundle, 'getUser'>` | The resolved key tuple for a single endpoint. |
+| `AllQueryKeysFor<typeof bundle>` | Union of every key prefix — the input type for `bundle.getKey`. |
+| `QueryKeysMap<API>` | The shape `defineAPIQueryKeys` accepts as its second argument. |
+| `APIQueryConfigDefinition<API, QUERY_KEYS>` | The bundle interface returned by `defineAPIQueryKeys`. |
+| `MountAPIQueryClientArgs<API, KEYS>` | The single args object accepted by `mountAPIQueryClient`. |
+| `EndpointConfig<API, K, KEYS>` | A single entry under `endpoints[K]`. |
+| `APIQueryOptions<DEF, KEYS>` | The options object accepted by `useAPIQuery`. |
+| `APIMutationOptions<DEF>` | The options object accepted by `useAPIMutation`. |
+| `APIQueryHook<API, KEYS>` | The signature of `useAPIQuery`. |
+| `APIMutationHook<API>` | The signature of `useAPIMutation`. |
+| `MountedQueries<API, KEYS>` | The hook pair returned by `mountAPIQueryClient`. |
 
 ## License
 

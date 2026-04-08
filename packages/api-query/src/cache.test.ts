@@ -1,39 +1,26 @@
-import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { renderHook, waitFor } from '@testing-library/react';
-import { APIClient, defineAPI } from '@unruly-software/api-client';
-import React from 'react';
+import { defineAPI } from '@unruly-software/api-client';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import z from 'zod';
-import { mountAPIQueryClient } from './index';
+import { defineAPIQueryKeys, mountAPIQueryClient, queryKey } from './index';
+import { createTestEnv, type TestEnv, UserSchema } from './testHelpers';
 
 const api = defineAPI<{
   path: string;
   method: 'GET' | 'POST' | 'PUT' | 'DELETE';
 }>();
 
-const UserSchema = z.object({
-  id: z.number(),
-  name: z.string(),
-  email: z.string().email(),
-});
-
 const testDefinition = {
   getUser: api.defineEndpoint({
     metadata: { path: '/users/:id', method: 'GET' },
     request: z.object({ userId: z.number() }),
     response: UserSchema,
-    apiQuery: {
-      queryKey: (request) => ['user', request?.userId],
-    },
   }),
 
   getUsers: api.defineEndpoint({
     metadata: { path: '/users', method: 'GET' },
     request: null,
     response: z.array(UserSchema),
-    apiQuery: {
-      queryKey: () => ['users'],
-    },
   }),
 
   createUser: api.defineEndpoint({
@@ -62,40 +49,29 @@ const testDefinition = {
   }),
 };
 
+const config = defineAPIQueryKeys(testDefinition, {
+  getUser: (request) => queryKey('user', request?.userId),
+  getUsers: () => queryKey('users'),
+});
+
 describe('Cache Management Tests', () => {
-  let queryClient: QueryClient;
-  let mockResolver: ReturnType<typeof vi.fn>;
-  let apiClient: APIClient<typeof testDefinition>;
-  let wrapper: React.ComponentType<{ children: React.ReactNode }>;
+  let queryClient: TestEnv<typeof testDefinition>['queryClient'];
+  let mockResolver: TestEnv<typeof testDefinition>['mockResolver'];
+  let apiClient: TestEnv<typeof testDefinition>['apiClient'];
+  let wrapper: TestEnv<typeof testDefinition>['wrapper'];
 
   beforeEach(() => {
-    queryClient = new QueryClient({
-      defaultOptions: {
-        queries: {
-          retry: false,
-          staleTime: 0,
-        },
-        mutations: {
-          retry: false,
-        },
-      },
-    });
-    mockResolver = vi.fn();
-    apiClient = new APIClient(testDefinition, {
-      resolver: mockResolver,
-    });
-
-    wrapper = ({ children }: { children: React.ReactNode }) =>
-      React.createElement(
-        QueryClientProvider,
-        { client: queryClient },
-        children,
-      );
+    ({ queryClient, mockResolver, apiClient, wrapper } =
+      createTestEnv(testDefinition));
   });
 
   describe('Query Key Generation', () => {
     it('should use default query keys when not configured', async () => {
-      const { useAPIQuery } = mountAPIQueryClient(apiClient, queryClient, {});
+      const { useAPIQuery } = mountAPIQueryClient({
+        apiClient,
+        queryClient,
+        queryKeys: config,
+      });
 
       const userData = { id: 1, name: 'John', email: 'john@example.com' };
       mockResolver.mockResolvedValue(userData);
@@ -108,15 +84,14 @@ describe('Cache Management Tests', () => {
         { wrapper },
       );
 
-      // Wait for data to load
       await waitFor(() => {
         expect(result.current.isLoading).toBe(false);
       });
 
-      // Verify the hook returns the data
       expect(result.current.data).toEqual(userData);
 
-      // Verify cache contains data with default key structure
+      // createUser has no resolver in config.queryKeys, so the cache uses
+      // the default [endpointName, request] shape
       const defaultQueryKey = [
         'createUser',
         { name: 'John', email: 'john@example.com' },
@@ -126,13 +101,11 @@ describe('Cache Management Tests', () => {
     });
 
     it('should use custom query keys when configured', async () => {
-      const config = {};
-
-      const { useAPIQuery } = mountAPIQueryClient(
+      const { useAPIQuery } = mountAPIQueryClient({
         apiClient,
         queryClient,
-        config,
-      );
+        queryKeys: config,
+      });
 
       const userData = { id: 1, name: 'John', email: 'john@example.com' };
       mockResolver.mockResolvedValue(userData);
@@ -142,20 +115,16 @@ describe('Cache Management Tests', () => {
         { wrapper },
       );
 
-      // Wait for data to load
       await waitFor(() => {
         expect(result.current.isLoading).toBe(false);
       });
 
-      // Verify the hook returns the data
       expect(result.current.data).toEqual(userData);
 
-      // Verify cache contains data with custom key
       const customQueryKey = ['user', 1];
       const cachedData = queryClient.getQueryData(customQueryKey);
       expect(cachedData).toEqual(userData);
 
-      // Verify default key doesn't contain the data
       const defaultKeyData = queryClient.getQueryData([
         'getUser',
         { userId: 1 },
@@ -164,13 +133,11 @@ describe('Cache Management Tests', () => {
     });
 
     it('should handle query keys for endpoints with no request data', async () => {
-      const config = {};
-
-      const { useAPIQuery } = mountAPIQueryClient(
+      const { useAPIQuery } = mountAPIQueryClient({
         apiClient,
         queryClient,
-        config,
-      );
+        queryKeys: config,
+      });
 
       const usersData = [
         { id: 1, name: 'John', email: 'john@example.com' },
@@ -180,15 +147,12 @@ describe('Cache Management Tests', () => {
 
       const { result } = renderHook(() => useAPIQuery('getUsers'), { wrapper });
 
-      // Wait for data to load
       await waitFor(() => {
         expect(result.current.isLoading).toBe(false);
       });
 
-      // Verify the hook returns the data
       expect(result.current.data).toEqual(usersData);
 
-      // Verify cache contains data with custom key
       const customQueryKey = ['users'];
       const cachedData = queryClient.getQueryData(customQueryKey);
       expect(cachedData).toHaveLength(2);
@@ -198,22 +162,20 @@ describe('Cache Management Tests', () => {
 
   describe('Cache Invalidation on Success', () => {
     it('should invalidate specified queries after successful mutation', async () => {
-      const config = {
-        createUser: {
-          invalidates: ({ response }: { response: any }) => [
-            ['users'], // Invalidate users list
-            ['user', response.id], // Invalidate specific user
-          ],
-        },
-      };
-
-      const { useAPIMutation } = mountAPIQueryClient(
+      const { useAPIMutation } = mountAPIQueryClient({
         apiClient,
         queryClient,
-        config,
-      );
+        queryKeys: config,
+        endpoints: {
+          createUser: {
+            invalidates: ({ response }) => [
+              ['users'], // Invalidate users list
+              ['user', response.id], // Invalidate specific user
+            ],
+          },
+        },
+      });
 
-      // Setup initial cache data
       queryClient.setQueryData(
         ['users'],
         [{ id: 1, name: 'John', email: 'john@example.com' }],
@@ -224,7 +186,6 @@ describe('Cache Management Tests', () => {
         email: 'john@example.com',
       });
 
-      // Mock invalidateQueries to track calls
       queryClient.invalidateQueries = vi.fn();
 
       const newUser = { id: 2, name: 'Jane', email: 'jane@example.com' };
@@ -234,18 +195,14 @@ describe('Cache Management Tests', () => {
         wrapper,
       });
 
-      // Execute mutation
       result.current.mutate({ name: 'Jane', email: 'jane@example.com' });
 
-      // Wait for mutation to complete
       await waitFor(() => {
         expect(result.current.isSuccess).toBe(true);
       });
 
-      // Wait for event handlers to execute
       await new Promise((resolve) => setTimeout(resolve, 0));
 
-      // Verify invalidation was called with correct keys
       expect(queryClient.invalidateQueries).toHaveBeenCalledWith({
         queryKey: ['users'],
       });
@@ -255,30 +212,22 @@ describe('Cache Management Tests', () => {
     });
 
     it('should invalidate multiple query patterns', async () => {
-      const config = {
-        updateUser: {
-          invalidates: ({
-            request,
-            response,
-          }: {
-            request: any;
-            response: any;
-          }) => [
-            ['user', request.userId],
-            ['users'],
-            ['user-profile', response.id],
-            ['user-posts', response.id],
-          ],
-        },
-      };
-
-      const { useAPIMutation } = mountAPIQueryClient(
+      const { useAPIMutation } = mountAPIQueryClient({
         apiClient,
         queryClient,
-        config,
-      );
+        queryKeys: config,
+        endpoints: {
+          updateUser: {
+            invalidates: ({ request, response }) => [
+              ['user', request.userId],
+              ['users'],
+              ['user-profile', response.id],
+              ['user-posts', response.id],
+            ],
+          },
+        },
+      });
 
-      // Mock invalidation function
       queryClient.invalidateQueries = vi.fn();
 
       const updatedUser = {
@@ -292,18 +241,14 @@ describe('Cache Management Tests', () => {
         wrapper,
       });
 
-      // Execute mutation
       result.current.mutate({ userId: 1, name: 'Updated John' });
 
-      // Wait for mutation to complete
       await waitFor(() => {
         expect(result.current.isSuccess).toBe(true);
       });
 
-      // Wait for event handlers
       await new Promise((resolve) => setTimeout(resolve, 0));
 
-      // Verify all specified invalidations
       expect(queryClient.invalidateQueries).toHaveBeenCalledWith({
         queryKey: ['user', 1],
       });
@@ -321,22 +266,20 @@ describe('Cache Management Tests', () => {
 
   describe('Cache Invalidation on Error', () => {
     it('should invalidate specified queries after mutation error', async () => {
-      const config = {
-        updateUser: {
-          errorInvalidates: ({ request }: { request: any; error: Error }) => [
-            ['user', request.userId], // Invalidate potentially stale user data
-            ['users'], // Invalidate list that might be outdated
-          ],
-        },
-      };
-
-      const { useAPIMutation } = mountAPIQueryClient(
+      const { useAPIMutation } = mountAPIQueryClient({
         apiClient,
         queryClient,
-        config,
-      );
+        queryKeys: config,
+        endpoints: {
+          updateUser: {
+            errorInvalidates: ({ request }) => [
+              ['user', request.userId], // Invalidate potentially stale user data
+              ['users'], // Invalidate list that might be outdated
+            ],
+          },
+        },
+      });
 
-      // Setup initial cache
       queryClient.setQueryData(['user', 1], {
         id: 1,
         name: 'John',
@@ -347,28 +290,22 @@ describe('Cache Management Tests', () => {
         [{ id: 1, name: 'John', email: 'john@example.com' }],
       );
 
-      // Mock invalidation function
       queryClient.invalidateQueries = vi.fn();
 
-      // Make mutation fail
       mockResolver.mockRejectedValue(new Error('Update failed'));
 
       const { result } = renderHook(() => useAPIMutation('updateUser'), {
         wrapper,
       });
 
-      // Execute failing mutation
       result.current.mutate({ userId: 1, name: 'Failed Update' });
 
-      // Wait for mutation to fail
       await waitFor(() => {
         expect(result.current.isError).toBe(true);
       });
 
-      // Wait for error handlers
       await new Promise((resolve) => setTimeout(resolve, 0));
 
-      // Verify error invalidations
       expect(queryClient.invalidateQueries).toHaveBeenCalledWith({
         queryKey: ['user', 1],
       });
@@ -378,36 +315,31 @@ describe('Cache Management Tests', () => {
     });
 
     it('should not invalidate queries when errorInvalidates is not configured', async () => {
-      const config = {
-        updateUser: {
-          // No errorInvalidates configured
-        },
-      };
-
-      const { useAPIMutation } = mountAPIQueryClient(
+      const { useAPIMutation } = mountAPIQueryClient({
         apiClient,
         queryClient,
-        config,
-      );
+        queryKeys: config,
+        endpoints: {
+          updateUser: {
+            // No errorInvalidates configured
+          },
+        },
+      });
 
       queryClient.invalidateQueries = vi.fn();
 
-      // Make mutation fail
       mockResolver.mockRejectedValue(new Error('Update failed'));
 
       const { result } = renderHook(() => useAPIMutation('updateUser'), {
         wrapper,
       });
 
-      // Execute failing mutation
       result.current.mutate({ userId: 1, name: 'Failed Update' });
 
-      // Wait for mutation to fail
       await waitFor(() => {
         expect(result.current.isError).toBe(true);
       });
 
-      // Wait for handlers
       await new Promise((resolve) => setTimeout(resolve, 0));
 
       // Verify no invalidations occurred
@@ -417,27 +349,27 @@ describe('Cache Management Tests', () => {
 
   describe('Complex Cache Management Scenarios', () => {
     it('should handle conditional cache operations based on response data', async () => {
-      const config = {
-        updateUser: {
-          invalidates: ({ response }: { response: any }) => {
-            const queries = [['user', response.id]];
-            // Only invalidate users list if name changed
-            if (response.name !== 'John') {
-              queries.push(['users']);
-            }
-            return queries;
-          },
-        },
-      };
-
-      const { useAPIMutation } = mountAPIQueryClient(
+      const { useAPIMutation } = mountAPIQueryClient({
         apiClient,
         queryClient,
-        config,
-      );
+        queryKeys: config,
+        endpoints: {
+          updateUser: {
+            invalidates: ({ response }) => {
+              const queries: (readonly (string | number)[])[] = [
+                ['user', response.id],
+              ];
+              // Only invalidate users list if name changed
+              if (response.name !== 'John') {
+                queries.push(['users']);
+              }
+              return queries;
+            },
+          },
+        },
+      });
       queryClient.invalidateQueries = vi.fn();
 
-      // Test with name change
       const firstUpdate = { id: 1, name: 'Johnny', email: 'john@example.com' };
       mockResolver.mockResolvedValue(firstUpdate);
 
@@ -445,7 +377,6 @@ describe('Cache Management Tests', () => {
         wrapper,
       });
 
-      // Execute mutation with name change
       result.current.mutate({ userId: 1, name: 'Johnny' });
 
       await waitFor(() => {
@@ -461,7 +392,6 @@ describe('Cache Management Tests', () => {
         queryKey: ['users'],
       });
 
-      // Reset and test without name change
       vi.clearAllMocks();
       result.current.reset(); // Reset mutation state
 
@@ -472,7 +402,6 @@ describe('Cache Management Tests', () => {
       };
       mockResolver.mockResolvedValue(secondUpdate);
 
-      // Execute mutation without name change
       result.current.mutate({ userId: 1, email: 'john.new@example.com' });
 
       await waitFor(() => {
@@ -490,11 +419,11 @@ describe('Cache Management Tests', () => {
     });
 
     it('should handle cache operations when no configuration is provided', async () => {
-      const { useAPIMutation } = mountAPIQueryClient(
+      const { useAPIMutation } = mountAPIQueryClient({
         apiClient,
         queryClient,
-        {},
-      );
+        queryKeys: config,
+      });
 
       queryClient.setQueryData = vi.fn();
       queryClient.invalidateQueries = vi.fn();
@@ -506,10 +435,8 @@ describe('Cache Management Tests', () => {
         wrapper,
       });
 
-      // Execute mutation
       result.current.mutate({ name: 'Alice', email: 'alice@example.com' });
 
-      // Wait for mutation to complete
       await waitFor(() => {
         expect(result.current.isSuccess).toBe(true);
       });

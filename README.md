@@ -13,6 +13,7 @@
 [![NPM Version](https://img.shields.io/npm/v/@unruly-software/api-server-express?style=flat&colorA=18181B&colorB=28CF8D&label=@unruly-software/api-server-express)](https://www.npmjs.com/package/@unruly-software/api-server-express)
 
 [![License](https://img.shields.io/github/license/unruly-software/api?style=flat&colorA=18181B&colorB=28CF8D)](https://github.com/unruly-software/api/blob/main/LICENSE)
+[![Coverage Status](https://img.shields.io/coverallsCoverage/github/unruly-software/api?branch=master&style=flat&colorA=18181B&colorB=28CF8D)](https://coveralls.io/github/unruly-software/api?branch=master)
 
 </div>
 
@@ -208,28 +209,56 @@ adapter is one example of what that adaptation can look like.
 
 ### Adding React Query hooks
 
+`api-query` splits the configuration into two calls so that cache-invalidation
+callbacks can reference the same key resolvers your hooks use.
+
+`defineAPIQueryKeys` registers a resolver per endpoint — that's the only place
+a cache key shape is declared. `mountAPIQueryClient` then takes the resulting
+bundle alongside per-endpoint behavior (`invalidates`, `queryOptions`,
+`mutationOptions`, ...) and returns the typed hooks.
+
 ```typescript
-import { mountAPIQueryClient } from '@unruly-software/api-query';
+import {
+  defineAPIQueryKeys,
+  mountAPIQueryClient,
+  queryKey,
+} from '@unruly-software/api-query';
 import { QueryClient } from '@tanstack/react-query';
 
-const { useAPIQuery, useAPIMutation } = mountAPIQueryClient(
-  client,
-  new QueryClient(),
-  {
-    getUser: {
-      queryKey: ({ request }) => ['user', request?.userId],
-    },
+const queryClient = new QueryClient();
+
+// 1. Register cache key resolvers. Wrap each tuple in `queryKey(...)` so
+//    TypeScript captures the literal shape — that's what powers the strict
+//    typing on `getKey` / `getKeyForEndpoint` below.
+const queryKeys = defineAPIQueryKeys(userAPI, {
+  getUser: (req) => queryKey('users', req?.userId),
+});
+
+// 2. Mount the hooks. The `endpoints` block is where per-endpoint behavior
+//    lives. Because `queryKeys` already exists by the time we call
+//    `mountAPIQueryClient`, invalidation callbacks can build keys via
+//    `queryKeys.getKey(...)` or `queryKeys.getKeyForEndpoint(...)` instead
+//    of duplicating the tuple shape inline.
+const { useAPIQuery, useAPIMutation } = mountAPIQueryClient({
+  apiClient: client,
+  queryClient,
+  queryKeys,
+  endpoints: {
     createUser: {
-      invalidates: () => [['users']],
+      invalidates: () => [queryKeys.getKey('users')],
     },
   },
-);
+});
 
 function UserProfile({ userId }: { userId: number }) {
   const { data: user } = useAPIQuery('getUser', { data: { userId } });
   return user ? <h1>{user.name}</h1> : null;
 }
 ```
+
+`queryKeys.getKey('users')` is a typed-identity helper: it takes the same
+literal arguments the resolver was registered with and returns the matching
+tuple.
 
 ## Why This Design
 
