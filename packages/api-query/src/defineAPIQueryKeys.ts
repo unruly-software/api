@@ -38,7 +38,7 @@ type ResolvedQueryKeyFor<
   : [K & string, SchemaInferInput<API[K]['request']> | undefined];
 
 /** Prefixes<['a', 1, true]> = ['a'] | ['a', 1] | ['a', 1, true] */
-type Prefixes<T extends readonly any[]> = T extends readonly [
+export type Prefixes<T extends readonly any[]> = T extends readonly [
   ...infer Init,
   any,
 ]

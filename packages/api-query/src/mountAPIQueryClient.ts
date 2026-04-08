@@ -17,8 +17,29 @@ import type {
 } from '@unruly-software/api-client';
 import type {
   APIQueryConfigDefinition,
+  Prefixes,
   QueryKeyItem,
 } from './defineAPIQueryKeys';
+
+/**
+ * Expand a `KEYS` union into the set of tuples accepted by `invalidates` /
+ * `errorInvalidates`. For each tuple member of `KEYS`, every non-empty prefix
+ * is allowed; wide array members (e.g. the default `readonly QueryKeyItem[]`
+ * for free-form mode) pass through unchanged.
+ *
+ * The `[Prefixes<KEYS>] extends [never]` wrap prevents the conditional from
+ * distributing over `never`, which would otherwise erase wide-array members
+ * whose prefix expansion is `never`.
+ *
+ * Each prefix tuple is wrapped in `Readonly<>` so that the values returned by
+ * `bundle.getKey(...)` (which are `readonly` thanks to the `<const>` modifier
+ * on its generics) match the constraint without needing call-site casts.
+ */
+type InvalidationKeys<KEYS> = KEYS extends readonly QueryKeyItem[]
+  ? [Prefixes<KEYS>] extends [never]
+    ? KEYS
+    : Readonly<Prefixes<KEYS>>
+  : never;
 
 export type EndpointConfig<
   API extends APIEndpointDefinitions,
@@ -31,7 +52,10 @@ export type EndpointConfig<
    * invalidate.
    *
    * In strict mode the return type is checked against the union of registered
-   * keys
+   * keys (and any custom keys the caller unioned in). Prefixes of any
+   * registered tuple are also accepted, so `queryKeys.getKey('users')` is a
+   * valid invalidation key alongside the full
+   * `queryKeys.getKeyForEndpoint('getUser', { userId: 5 })`.
    *
    * @example
    *   updateUser: {
@@ -44,7 +68,7 @@ export type EndpointConfig<
   invalidates?: (input: {
     request: SchemaInferInput<API[K]['request']>;
     response: SchemaInferOutput<API[K]['response']>;
-  }) => readonly KEYS[];
+  }) => readonly InvalidationKeys<KEYS>[];
 
   /**
    * Called after a failed request to this endpoint. Receives the request
@@ -59,7 +83,7 @@ export type EndpointConfig<
   errorInvalidates?: (input: {
     request: SchemaInferInput<API[K]['request']>;
     error: Error;
-  }) => readonly KEYS[];
+  }) => readonly InvalidationKeys<KEYS>[];
 
   /**
    * Default react-query options applied to every `useAPIQuery` call against

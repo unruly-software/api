@@ -188,8 +188,10 @@ type-checking adds friction without benefit.
 ### Strict
 
 Strict mode is enabled by passing `<typeof api, QueryKeysFor<typeof queryKeys>>`
-as type parameters. Invalidation callbacks are then type-checked against the
-union of every prefix tuple the registered resolvers can produce.
+as type parameters. `QueryKeysFor<...>` returns the union of full resolved
+keys; the library expands every non-empty prefix internally when type-checking
+`invalidates` and `errorInvalidates`, so both full keys and prefixes of
+registered keys are accepted.
 
 ```typescript
 import {
@@ -235,6 +237,43 @@ endpoints: {
 Use strict mode when cache keys are entirely owned by `defineAPIQueryKeys`
 and you want refactoring a key shape to surface every consumer at compile
 time.
+
+#### Mixing in custom keys
+
+Because `QueryKeysFor<...>` returns the union of full resolved keys (rather
+than pre-expanding to prefixes), it composes cleanly with custom cache key
+shapes via a union allowing integration with existing queries or libraries:
+
+```typescript
+type CustomKeys = ['my-feature', string] | ['analytics', number];
+
+mountAPIQueryClient<
+  typeof userAPI,
+  QueryKeysFor<typeof queryKeys> | CustomKeys
+>({
+  apiClient,
+  queryClient,
+  queryKeys,
+  endpoints: {
+    updateUser: {
+      invalidates: ({ response }) => [
+        queryKeys.getKeyForEndpoint('getUser', { userId: response.id }),
+        ['my-feature', 'related-cache-bucket'],
+        ['analytics'], // ← prefix of ['analytics', number] is also accepted
+      ],
+    },
+  },
+});
+```
+
+Inline tuple types work too:
+
+```typescript
+mountAPIQueryClient<
+  typeof userAPI,
+  QueryKeysFor<typeof queryKeys> | ['my', 'custom', 'key']
+>({ /* ... */ });
+```
 
 ## Per-Endpoint Configuration
 

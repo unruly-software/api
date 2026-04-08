@@ -400,6 +400,64 @@ describe('mountAPIQueryClient options.endpoints[K].invalidates — strict mode',
       },
     });
   });
+
+  it('accepts prefixes of registered keys (not just full tuples)', () => {
+    // The key insight: `QueryKeysFor<typeof config>` returns the FULL
+    // resolved keys, but the library expands prefixes inside `invalidates`
+    // / `errorInvalidates`. So `getKey('users')` (a 1-element prefix of
+    // the 2-element `['users', number | undefined]` key) is allowed.
+    mountAPIQueryClient<typeof api, QueryKeysFor<typeof config>>({
+      apiClient,
+      queryClient,
+      queryKeys: config,
+      endpoints: {
+        updateUser: {
+          invalidates: () => [
+            config.getKey('users'),
+            config.getKey('posts'),
+            config.getKey('posts', 'search'),
+          ],
+        },
+      },
+    });
+  });
+
+  it('accepts a custom-keys union alongside QueryKeysFor', () => {
+    // The whole point of keeping QueryKeysFor as full tuples (rather than
+    // pre-expanding to prefixes): consumers can union their own cache key
+    // shapes into the strict-mode constraint and the library will expand
+    // prefixes from the merged union.
+    type CustomKey = ['my', 'custom', 'key'];
+
+    mountAPIQueryClient<typeof api, QueryKeysFor<typeof config> | CustomKey>({
+      apiClient,
+      queryClient,
+      queryKeys: config,
+      endpoints: {
+        updateUser: {
+          invalidates: () => [
+            config.getKeyForEndpoint('getUser', { userId: 1 }),
+            ['my', 'custom', 'key'] as const,
+            ['my', 'custom'] as const,
+            ['my'] as const,
+          ],
+        },
+      },
+    });
+
+    mountAPIQueryClient<typeof api, QueryKeysFor<typeof config> | CustomKey>({
+      apiClient,
+      queryClient,
+      queryKeys: config,
+      endpoints: {
+        updateUser: {
+          // @ts-expect-error — 'unrelated' isn't a registered prefix or in
+          // the custom-keys union
+          invalidates: () => [['unrelated'] as const],
+        },
+      },
+    });
+  });
 });
 
 describe('mountAPIQueryClient options.endpoints[K].invalidates — free-form mode', () => {
