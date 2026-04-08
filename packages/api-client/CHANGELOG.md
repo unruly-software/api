@@ -1,5 +1,11 @@
 # @unruly-software/api-client
 
+## 2.0.1
+
+### Patch Changes
+
+- 33d6663: Update NPM descriptions
+
 ## 2.0.0
 
 ### Major Changes
