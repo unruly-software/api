@@ -1,4 +1,5 @@
 import { QueryClient } from '@tanstack/react-query';
+import type { APIEndpointDefinitions } from '@unruly-software/api-client';
 import { APIClient, defineAPI } from '@unruly-software/api-client';
 import { beforeEach, describe, expectTypeOf, it } from 'vitest';
 import z from 'zod';
@@ -6,10 +7,19 @@ import {
   type APIMutationOptions,
   type APIQueryOptions,
   defineAPIQueryKeys,
-  type MountAPIQueryClientOptions,
+  type MountAPIQueryClientArgs,
   mountAPIQueryClient,
   queryKey,
 } from './index';
+
+// Local alias for the partial-args shape covering just the `endpoints` map.
+// `MountAPIQueryClientOptions` was removed from the public barrel — derive
+// the same shape from `MountAPIQueryClientArgs` for the type-only assertions
+// below.
+type MountOptionsFor<API extends APIEndpointDefinitions> = Pick<
+  MountAPIQueryClientArgs<API>,
+  'endpoints'
+>;
 
 // Skip all tests in this file — they're type-only assertions, not runtime checks.
 beforeEach((t) => {
@@ -116,7 +126,7 @@ const config = defineAPIQueryKeys(testDefinition, {
   getUser: (request) => queryKey('user', request?.userId),
 });
 
-const testMountOptions: MountAPIQueryClientOptions<TestAPI> = {
+const testMountOptions: MountOptionsFor<TestAPI> = {
   endpoints: {
     health: {
       queryOptions: {
@@ -157,11 +167,9 @@ const { useAPIQuery, useAPIMutation } = mountAPIQueryClient({
 });
 
 describe('Type Tests for API Query Integration', () => {
-  describe('MountAPIQueryClientOptions type', () => {
+  describe('mount options type', () => {
     it('should properly type configuration options', () => {
-      expectTypeOf(testMountOptions).toMatchTypeOf<
-        MountAPIQueryClientOptions<TestAPI>
-      >();
+      expectTypeOf(testMountOptions).toMatchTypeOf<MountOptionsFor<TestAPI>>();
 
       // Verify specific configuration typing
       expectTypeOf(
@@ -397,7 +405,7 @@ describe('Type Tests for API Query Integration', () => {
 
     it('should enforce config type compatibility', () => {
       // This should work fine
-      const validOptions: MountAPIQueryClientOptions<TestAPI> = {
+      const validOptions: MountOptionsFor<TestAPI> = {
         endpoints: {
           getUser: {
             invalidates: () => [['users']],
@@ -405,11 +413,9 @@ describe('Type Tests for API Query Integration', () => {
         },
       };
 
-      expectTypeOf(validOptions).toMatchTypeOf<
-        MountAPIQueryClientOptions<TestAPI>
-      >();
+      expectTypeOf(validOptions).toMatchTypeOf<MountOptionsFor<TestAPI>>();
 
-      const _invalidOptions: MountAPIQueryClientOptions<TestAPI> = {
+      const _invalidOptions: MountOptionsFor<TestAPI> = {
         endpoints: {
           // @ts-expect-error
           nonExistentEndpoint: {

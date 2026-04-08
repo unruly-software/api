@@ -13,17 +13,18 @@
     "build": "yarn workspaces foreach -t run build",
     "clean": "yarn workspaces foreach -t run clean",
     "test": "vitest",
+    "test:coverage": "vitest run --coverage --project @unruly-software/api-client --project @unruly-software/api-server --project @unruly-software/api-query",
     "version": "changeset version",
     "release": "CI=true yarn --mode=update-lockfile && yarn build && CI=true yarn test && changeset publish",
     "lint": "biome check",
     "lint:fix": "biome check --write",
-    "ci": "CI=true yarn build && CI=true yarn test && yarn lint && tsc --noEmit"
+    "ci": "CI=true yarn build && CI=true yarn test && CI=true yarn test:coverage && yarn lint && tsc --noEmit"
   },
   "devDependencies": {
     "@biomejs/biome": "2.2.0",
     "@changesets/changelog-github": "^0.4.8",
     "@changesets/cli": "^2.26.2",
-    "@vitest/coverage-istanbul": "^0.32.2",
+    "@vitest/coverage-istanbul": "3.2.4",
     "typescript": "5.0.4",
     "vitest": "3.2.4",
     "zod": "^4.0.0"
