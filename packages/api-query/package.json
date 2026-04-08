@@ -5,6 +5,7 @@
   "license": "MIT",
   "type": "module",
   "sideEffects": false,
+  "description": "React Query integration for `@unruly-software/api-client`. Endpoint definitions become typed `useAPIQuery` and `useAPIMutation` hooks with declarative cache key resolvers and event-driven invalidation.",
   "scripts": {
     "build": "rm -rf ./dist && tsc --noEmit && microbundle",
     "build:watch": "tsc --noEmit --watch",

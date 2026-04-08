@@ -5,6 +5,7 @@
   "license": "MIT",
   "type": "module",
   "sideEffects": false,
+  "description": "A typed router for implementing the endpoint definitions you declared with `@unruly-software/api-client`. It validates incoming requests and outgoing responses against your Zod schemas, injects an application-defined context into every handler, and stays out of the way of the actual transport.",
   "scripts": {
     "build": "rm -rf ./dist && tsc --noEmit && microbundle",
     "build:watch": "tsc --noEmit --watch",

@@ -5,6 +5,7 @@
   "license": "MIT",
   "type": "module",
   "sideEffects": false,
+  "description": "Modelling Typescript value objects on top of Zod schemas. Define a type once, get runtime validation, a real class you can attach methods to, and lossless JSON.stringify round-tripping — without writing boilerplate.",
   "scripts": {
     "build": "rm -rf ./dist && tsc --noEmit && microbundle",
     "build:watch": "tsc --noEmit --watch",
