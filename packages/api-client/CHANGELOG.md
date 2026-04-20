@@ -1,5 +1,11 @@
 # @unruly-software/api-client
 
+## 2.0.2
+
+### Patch Changes
+
+- 5233929: Throw errors with a custom wrapper to preserve context of endpoint
+
 ## 2.0.1
 
 ### Patch Changes
