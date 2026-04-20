@@ -14,7 +14,7 @@
     "clean": "yarn workspaces foreach -t run clean",
     "test": "vitest",
     "test:coverage": "vitest run --coverage --project @unruly-software/api-client --project @unruly-software/api-server --project @unruly-software/api-query",
-    "version": "changeset version",
+    "version": "changeset version && yarn install --mode=update-lockfile",
     "release": "CI=true yarn --mode=update-lockfile && yarn build && CI=true yarn test && changeset publish",
     "lint": "biome check",
     "lint:fix": "biome check --write",
