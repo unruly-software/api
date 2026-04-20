@@ -1,4 +1,8 @@
-import { defineAPI } from '@unruly-software/api-client';
+import {
+  APIClientRequestParsingError,
+  APIClientResponseParsingError,
+  defineAPI,
+} from '@unruly-software/api-client';
 import { describe, expect, it } from 'vitest';
 import z from 'zod';
 import { defineRouter, mergeImplementedRouters } from './router';
@@ -210,8 +214,9 @@ describe('Router Error Handling', () => {
         });
         expect.fail('Should have thrown validation error');
       } catch (error) {
-        expect(error).toBeInstanceOf(z.ZodError);
-        const zodError = error as z.ZodError;
+        expect(error).toBeInstanceOf(APIClientRequestParsingError);
+        const zodError = (error as APIClientRequestParsingError)
+          .previousError as z.ZodError;
         expect(zodError.issues).toHaveLength(1);
         expect(zodError.issues[0].path).toEqual(['userId']);
         expect(zodError.issues[0].code).toBe('invalid_type');
@@ -230,8 +235,9 @@ describe('Router Error Handling', () => {
         });
         expect.fail('Should have thrown validation error');
       } catch (error) {
-        expect(error).toBeInstanceOf(z.ZodError);
-        const zodError = error as z.ZodError;
+        expect(error).toBeInstanceOf(APIClientRequestParsingError);
+        const zodError = (error as APIClientRequestParsingError)
+          .previousError as z.ZodError;
         expect(zodError.issues.length).toBeGreaterThan(0);
 
         // Check for type errors
@@ -254,8 +260,9 @@ describe('Router Error Handling', () => {
         });
         expect.fail('Should have thrown validation error');
       } catch (error) {
-        expect(error).toBeInstanceOf(z.ZodError);
-        const zodError = error as z.ZodError;
+        expect(error).toBeInstanceOf(APIClientRequestParsingError);
+        const zodError = (error as APIClientRequestParsingError)
+          .previousError as z.ZodError;
         expect(
           zodError.issues.some(
             (issue) =>
@@ -278,8 +285,9 @@ describe('Router Error Handling', () => {
         });
         expect.fail('Should have thrown validation error');
       } catch (error) {
-        expect(error).toBeInstanceOf(z.ZodError);
-        const zodError = error as z.ZodError;
+        expect(error).toBeInstanceOf(APIClientRequestParsingError);
+        const zodError = (error as APIClientRequestParsingError)
+          .previousError as z.ZodError;
         expect(zodError.issues[0].code).toBe('too_small');
         expect(zodError.issues[0].path).toEqual(['userId']);
       }
@@ -343,8 +351,9 @@ describe('Router Error Handling', () => {
         });
         expect.fail('Should have thrown validation error');
       } catch (error) {
-        expect(error).toBeInstanceOf(z.ZodError);
-        const zodError = error as z.ZodError;
+        expect(error).toBeInstanceOf(APIClientRequestParsingError);
+        const zodError = (error as APIClientRequestParsingError)
+          .previousError as z.ZodError;
 
         // Should have errors for multiple nested fields
         const firstNameError = zodError.issues.find((issue) =>
@@ -573,8 +582,9 @@ describe('Router Error Handling', () => {
         });
         expect.fail('Should have thrown response validation error');
       } catch (error) {
-        expect(error).toBeInstanceOf(z.ZodError);
-        const zodError = error as z.ZodError;
+        expect(error).toBeInstanceOf(APIClientResponseParsingError);
+        const zodError = (error as APIClientResponseParsingError)
+          .previousError as z.ZodError;
         expect(zodError.issues).toHaveLength(4); // All required fields missing
 
         const missingFields = zodError.issues.map((issue) => issue.path[0]);
@@ -631,8 +641,9 @@ describe('Router Error Handling', () => {
         });
         expect.fail('Should have thrown response validation error');
       } catch (error) {
-        expect(error).toBeInstanceOf(z.ZodError);
-        const zodError = error as z.ZodError;
+        expect(error).toBeInstanceOf(APIClientResponseParsingError);
+        const zodError = (error as APIClientResponseParsingError)
+          .previousError as z.ZodError;
         expect(zodError.issues.length).toBeGreaterThanOrEqual(3);
 
         const idTypeError = zodError.issues.find(
@@ -708,8 +719,9 @@ describe('Router Error Handling', () => {
         });
         expect.fail('Should have thrown validation error');
       } catch (error) {
-        expect(error).toBeInstanceOf(z.ZodError);
-        const zodError = error as z.ZodError;
+        expect(error).toBeInstanceOf(APIClientResponseParsingError);
+        const zodError = (error as APIClientResponseParsingError)
+          .previousError as z.ZodError;
 
         const discriminatorError = zodError.issues.find(
           (issue) =>
@@ -958,7 +970,7 @@ describe('Router Error Handling', () => {
         });
         expect.fail('Should have thrown validation error for null response');
       } catch (error) {
-        expect(error).toBeInstanceOf(z.ZodError);
+        expect(error).toBeInstanceOf(APIClientResponseParsingError);
       }
     });
   });

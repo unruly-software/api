@@ -2,6 +2,7 @@ import { describe, expect, expectTypeOf, it } from 'vitest';
 import z from 'zod';
 import { APIClient } from './APIClient';
 import { defineAPI } from './endpoint';
+import type { APIClientRequestParsingError } from './errors';
 
 const apiSpec = defineAPI<{
   path: string;
@@ -177,7 +178,10 @@ describe('Given the simple login/logout API Client and definition', async () => 
       });
       expect.fail('Should have thrown');
     } catch (err) {
-      expect((err as z.ZodError).issues).toMatchInlineSnapshot(`
+      expect(
+        ((err as APIClientRequestParsingError).previousError as z.ZodError)
+          .issues,
+      ).toMatchInlineSnapshot(`
         [
           {
             "code": "invalid_format",
@@ -295,7 +299,7 @@ describe('Given the simple login/logout API Client and definition', async () => 
       expect.fail('Should have thrown');
     } catch (err) {
       expect((err as Error).message).toMatchInlineSnapshot(`
-        "request-validation-formatted: [
+        "request-validation-formatted: Request parsing failed for endpoint "login": [
           {
             "origin": "string",
             "code": "invalid_format",
@@ -342,7 +346,7 @@ describe('Given the simple login/logout API Client and definition', async () => 
       expect.fail('Should have thrown');
     } catch (err) {
       expect((err as Error).message).toMatchInlineSnapshot(`
-        "response-validation-formatted: [
+        "response-validation-formatted: Response parsing failed for endpoint "invalidResponseFromServer": [
           {
             "expected": "object",
             "code": "invalid_type",

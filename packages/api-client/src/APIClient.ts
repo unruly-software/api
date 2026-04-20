@@ -1,4 +1,8 @@
 import type { EndpointDefinition } from './endpoint';
+import {
+  APIClientRequestParsingError,
+  APIClientResponseParsingError,
+} from './errors';
 import type {
   SchemaInferInput,
   SchemaInferOutput,
@@ -70,7 +74,11 @@ export class APIClient<T extends APIEndpointDefinitions> {
       throw error;
     }
 
-    const parsedResponse = this.validateResponse(definition, resolverOutput);
+    const parsedResponse = this.validateResponse(
+      endpoint,
+      definition,
+      resolverOutput,
+    );
 
     this.$succeeded.publish({
       endpoint: endpoint,
@@ -95,12 +103,17 @@ export class APIClient<T extends APIEndpointDefinitions> {
 
       return { definition, abortSignal, request };
     } catch (e) {
-      if (!this.errorFormatter) throw e;
-      throw this.errorFormatter(e as Error, { stage: 'request-validation' });
+      const parsingError = new APIClientRequestParsingError({
+        previousError: e as Error,
+        endpoint: String(endpoint),
+      });
+      if (!this.errorFormatter) throw parsingError;
+      throw this.errorFormatter(parsingError, { stage: 'request-validation' });
     }
   }
 
   private validateResponse<K extends keyof T>(
+    endpoint: K,
     definition: T[K],
     resolverOutput: unknown,
   ): SchemaInferOutput<T[K]['response']> {
@@ -110,8 +123,12 @@ export class APIClient<T extends APIEndpointDefinitions> {
       ) as SchemaInferOutput<T[K]['response']>;
       return parsedResponse;
     } catch (e) {
-      if (!this.errorFormatter) throw e;
-      throw this.errorFormatter(e as Error, { stage: 'response-validation' });
+      const parsingError = new APIClientResponseParsingError({
+        previousError: e as Error,
+        endpoint: String(endpoint),
+      });
+      if (!this.errorFormatter) throw parsingError;
+      throw this.errorFormatter(parsingError, { stage: 'response-validation' });
     }
   }
 

@@ -1,4 +1,9 @@
-import { APIClient, defineAPI } from '@unruly-software/api-client';
+import {
+  APIClient,
+  APIClientRequestParsingError,
+  APIClientResponseParsingError,
+  defineAPI,
+} from '@unruly-software/api-client';
 import { beforeEach, describe, expect, it } from 'vitest';
 import z from 'zod';
 import { defineRouter, mergeImplementedRouters } from './router';
@@ -607,7 +612,7 @@ describe('API Client-Server Integration', () => {
         });
         expect.fail('Should have thrown validation error');
       } catch (error) {
-        expect(error).toBeInstanceOf(z.ZodError);
+        expect(error).toBeInstanceOf(APIClientRequestParsingError);
       }
     });
 
@@ -881,8 +886,9 @@ describe('API Client-Server Integration', () => {
         expect.fail('Should have thrown validation error');
       } catch (error) {
         // Should be caught by client-side validation
-        expect(error).toBeInstanceOf(z.ZodError);
-        const zodError = error as z.ZodError;
+        expect(error).toBeInstanceOf(APIClientRequestParsingError);
+        const zodError = (error as APIClientRequestParsingError)
+          .previousError as z.ZodError;
 
         const nameError = zodError.issues.find((issue) =>
           issue.path.includes('name'),
@@ -981,7 +987,7 @@ describe('API Client-Server Integration', () => {
         await invalidClient.request('getUser', { request: { userId: 1 } });
         expect.fail('Should have thrown response validation error');
       } catch (error) {
-        expect(error).toBeInstanceOf(z.ZodError);
+        expect(error).toBeInstanceOf(APIClientResponseParsingError);
       }
     });
   });

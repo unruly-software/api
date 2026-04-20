@@ -1,10 +1,12 @@
-import type {
-  AnyEndpointDefinition,
-  APIEndpointDefinitions,
-  APIEndpointDefinitionWithMetadata,
-  SchemaInferInput,
-  SchemaInferOutput,
-  SchemaValue,
+import {
+  type AnyEndpointDefinition,
+  APIClientRequestParsingError,
+  APIClientResponseParsingError,
+  type APIEndpointDefinitions,
+  type APIEndpointDefinitionWithMetadata,
+  type SchemaInferInput,
+  type SchemaInferOutput,
+  type SchemaValue,
 } from '@unruly-software/api-client';
 
 export type ImplementedAPIRouter<API extends APIEndpointDefinitions, CTX> = {
@@ -111,14 +113,30 @@ export const defineRouter = <API extends APIEndpointDefinitions, CTX>(input: {
           throw new Error(`No implementation for endpoint ${String(endpoint)}`);
         }
 
-        const requestData = definition.request?.parse(data);
+        let requestData: unknown;
+        try {
+          requestData = definition.request?.parse(data);
+        } catch (e) {
+          throw new APIClientRequestParsingError({
+            previousError: e as Error,
+            endpoint: String(endpoint),
+          });
+        }
 
         const output = await endpointImpl.handle({
           context,
           data: requestData as any,
         });
 
-        const responseData = definition.response?.parse(output);
+        let responseData: unknown;
+        try {
+          responseData = definition.response?.parse(output);
+        } catch (e) {
+          throw new APIClientResponseParsingError({
+            previousError: e as Error,
+            endpoint: String(endpoint),
+          });
+        }
 
         return responseData as any;
       },

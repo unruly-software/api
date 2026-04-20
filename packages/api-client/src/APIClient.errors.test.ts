@@ -2,6 +2,10 @@ import { describe, expect, expectTypeOf, it } from 'vitest';
 import z from 'zod';
 import { APIClient } from './APIClient';
 import { defineAPI } from './endpoint';
+import {
+  APIClientRequestParsingError,
+  APIClientResponseParsingError,
+} from './errors';
 
 const apiSpec = defineAPI<{
   path: string;
@@ -87,8 +91,12 @@ describe('APIClient Error Handling', () => {
         });
         expect.fail('Should have thrown validation error');
       } catch (error) {
-        expect(error).toBeInstanceOf(z.ZodError);
-        const zodError = error as z.ZodError;
+        expect(error).toBeInstanceOf(APIClientRequestParsingError);
+        expect((error as APIClientRequestParsingError).endpoint).toBe(
+          'validEndpoint',
+        );
+        const zodError = (error as APIClientRequestParsingError)
+          .previousError as z.ZodError;
         expect(zodError.issues).toHaveLength(3); // name, email, age missing
         expect(zodError.issues.map((issue) => issue.path)).toEqual(
           expect.arrayContaining([['name'], ['email'], ['age']]),
@@ -106,8 +114,9 @@ describe('APIClient Error Handling', () => {
         });
         expect.fail('Should have thrown validation error');
       } catch (error) {
-        expect(error).toBeInstanceOf(z.ZodError);
-        const zodError = error as z.ZodError;
+        expect(error).toBeInstanceOf(APIClientRequestParsingError);
+        const zodError = (error as APIClientRequestParsingError)
+          .previousError as z.ZodError;
         expect(zodError.issues.length).toBeGreaterThan(0);
       }
 
@@ -122,8 +131,9 @@ describe('APIClient Error Handling', () => {
         });
         expect.fail('Should have thrown validation error');
       } catch (error) {
-        expect(error).toBeInstanceOf(z.ZodError);
-        const zodError = error as z.ZodError;
+        expect(error).toBeInstanceOf(APIClientRequestParsingError);
+        const zodError = (error as APIClientRequestParsingError)
+          .previousError as z.ZodError;
         expect(
           zodError.issues.some((issue) => issue.path.includes('name')),
         ).toBe(true);
@@ -158,8 +168,9 @@ describe('APIClient Error Handling', () => {
         });
         expect.fail('Should have thrown validation error');
       } catch (error) {
-        expect(error).toBeInstanceOf(z.ZodError);
-        const zodError = error as z.ZodError;
+        expect(error).toBeInstanceOf(APIClientRequestParsingError);
+        const zodError = (error as APIClientRequestParsingError)
+          .previousError as z.ZodError;
 
         // Should have errors for firstName and preferences
         expect(
@@ -273,8 +284,12 @@ describe('APIClient Error Handling', () => {
         });
         expect.fail('Should have thrown response validation error');
       } catch (error) {
-        expect(error).toBeInstanceOf(z.ZodError);
-        const zodError = error as z.ZodError;
+        expect(error).toBeInstanceOf(APIClientResponseParsingError);
+        expect((error as APIClientResponseParsingError).endpoint).toBe(
+          'validEndpoint',
+        );
+        const zodError = (error as APIClientResponseParsingError)
+          .previousError as z.ZodError;
         expect(zodError.issues).toHaveLength(4); // All required fields missing
       }
     });
@@ -295,8 +310,9 @@ describe('APIClient Error Handling', () => {
         });
         expect.fail('Should have thrown response validation error');
       } catch (error) {
-        expect(error).toBeInstanceOf(z.ZodError);
-        const zodError = error as z.ZodError;
+        expect(error).toBeInstanceOf(APIClientResponseParsingError);
+        const zodError = (error as APIClientResponseParsingError)
+          .previousError as z.ZodError;
         expect(zodError.issues.length).toBeGreaterThanOrEqual(3);
       }
     });
@@ -380,7 +396,7 @@ describe('APIClient Error Handling', () => {
         });
         expect.fail('Should have thrown validation error');
       } catch (error) {
-        expect(error).toBeInstanceOf(z.ZodError);
+        expect(error).toBeInstanceOf(APIClientResponseParsingError);
       }
     });
   });
@@ -515,12 +531,12 @@ describe('APIClient Error Handling', () => {
         });
         expect.fail('Should have thrown');
       } catch (error) {
-        expect(error).toBeInstanceOf(z.ZodError);
-        // ZodError.message returns JSON array format, so it will start with '['
-        // The key is that it should NOT have our custom formatting prefix like '[REQUEST-VALIDATION]'
-        const errorMessage = (error as Error).message;
-        expect(errorMessage).toMatch(/^\[/); // Should start with '[' (JSON array)
-        expect(errorMessage).not.toMatch(
+        expect(error).toBeInstanceOf(APIClientRequestParsingError);
+        const parsingError = error as APIClientRequestParsingError;
+        expect(parsingError.previousError).toBeInstanceOf(z.ZodError);
+        expect(parsingError.endpoint).toBe('validEndpoint');
+        // The wrapper error message should NOT have the formatter's stage prefix
+        expect(parsingError.message).not.toMatch(
           /^\[REQUEST-VALIDATION\]|^\[RESOLVER\]|^\[RESPONSE-VALIDATION\]/,
         );
       }
@@ -554,7 +570,7 @@ describe('APIClient Error Handling', () => {
         });
         expect.fail('Should have thrown');
       } catch (error) {
-        expect(error).toBeInstanceOf(z.ZodError);
+        expect(error).toBeInstanceOf(APIClientResponseParsingError);
       }
     });
 

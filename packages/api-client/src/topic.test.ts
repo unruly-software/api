@@ -2,6 +2,10 @@ import { describe, expect, expectTypeOf, it, vi } from 'vitest';
 import z from 'zod';
 import { APIClient } from './APIClient';
 import { defineAPI } from './endpoint';
+import {
+  APIClientRequestParsingError,
+  APIClientResponseParsingError,
+} from './errors';
 import { type ErrorMessage, makeTopic, type SuccessMessage } from './topic';
 
 describe('topics', () => {
@@ -511,7 +515,7 @@ describe('topics', () => {
           });
           expect.fail('Should have thrown validation error');
         } catch (error) {
-          expect(error).toBeInstanceOf(z.ZodError);
+          expect(error).toBeInstanceOf(APIClientRequestParsingError);
         }
 
         // Test response validation error
@@ -533,7 +537,7 @@ describe('topics', () => {
           });
           expect.fail('Should have thrown validation error');
         } catch (error) {
-          expect(error).toBeInstanceOf(z.ZodError);
+          expect(error).toBeInstanceOf(APIClientResponseParsingError);
         }
 
         expect(successMessages).toHaveLength(0);
