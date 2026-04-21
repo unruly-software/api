@@ -1,5 +1,6 @@
 import {
   type AnyEndpointDefinition,
+  APIClientError,
   APIClientRequestParsingError,
   APIClientResponseParsingError,
   type APIEndpointDefinitions,
@@ -71,7 +72,9 @@ export const defineRouter = <API extends APIEndpointDefinitions, CTX>(input: {
   const getDefinition = <K extends keyof API>(endpoint: K): API[K] => {
     const def = definitions[endpoint];
     if (!def) {
-      throw new Error(`No definition for endpoint ${String(endpoint)}`);
+      throw new APIClientError(
+        `No definition for endpoint ${String(endpoint)}`,
+      );
     }
     return def;
   };
@@ -110,7 +113,9 @@ export const defineRouter = <API extends APIEndpointDefinitions, CTX>(input: {
         const definition = getDefinition(endpoint);
         const endpointImpl = endpoints[endpoint];
         if (!endpointImpl) {
-          throw new Error(`No implementation for endpoint ${String(endpoint)}`);
+          throw new APIClientError(
+            `No implementation for endpoint ${String(endpoint)}`,
+          );
         }
 
         let requestData: unknown;

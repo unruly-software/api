@@ -1,5 +1,6 @@
 import type { EndpointDefinition } from './endpoint';
 import {
+  APIClientError,
   APIClientRequestParsingError,
   APIClientResponseParsingError,
 } from './errors';
@@ -93,8 +94,16 @@ export class APIClient<T extends APIEndpointDefinitions> {
     endpoint: K,
     options: RequestOptions<T[K]> | undefined,
   ) {
+    let definition: T[K];
     try {
-      const definition = this.getEndpointDefinition(endpoint);
+      definition = this.getEndpointDefinition(endpoint);
+    } catch (endpointError) {
+      if (!this.errorFormatter) throw endpointError;
+      throw this.errorFormatter(endpointError as Error, {
+        stage: 'request-validation',
+      });
+    }
+    try {
       const abortSignal = options?.abort;
       const unparsedRequestBody = options?.request;
       const request = definition.request?.parse(
@@ -135,7 +144,7 @@ export class APIClient<T extends APIEndpointDefinitions> {
   getEndpointDefinition<K extends keyof T>(endpoint: K): T[K] {
     const endpointDefinition = this.definitions[endpoint];
     if (!endpointDefinition) {
-      throw new Error(`Endpoint ${String(endpoint)} not found`);
+      throw new APIClientError(`Endpoint ${String(endpoint)} not found`);
     }
     return endpointDefinition;
   }

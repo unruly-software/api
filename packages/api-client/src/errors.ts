@@ -5,9 +5,7 @@ export class APIClientRequestParsingError extends APIClientError {
   readonly endpoint: string;
 
   constructor(options: { previousError: Error; endpoint: string }) {
-    super(
-      `Request parsing failed for endpoint "${options.endpoint}": ${options.previousError.message}`,
-    );
+    super(`Request parsing failed for endpoint "${options.endpoint}"`);
     this.name = 'APIClientRequestParsingError';
     this.previousError = options.previousError;
     this.endpoint = options.endpoint;
@@ -19,9 +17,7 @@ export class APIClientResponseParsingError extends APIClientError {
   readonly endpoint: string;
 
   constructor(options: { previousError: Error; endpoint: string }) {
-    super(
-      `Response parsing failed for endpoint "${options.endpoint}": ${options.previousError.message}`,
-    );
+    super(`Response parsing failed for endpoint "${options.endpoint}"`);
     this.name = 'APIClientResponseParsingError';
     this.previousError = options.previousError;
     this.endpoint = options.endpoint;

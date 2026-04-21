@@ -298,20 +298,9 @@ describe('Given the simple login/logout API Client and definition', async () => 
       });
       expect.fail('Should have thrown');
     } catch (err) {
-      expect((err as Error).message).toMatchInlineSnapshot(`
-        "request-validation-formatted: Request parsing failed for endpoint "login": [
-          {
-            "origin": "string",
-            "code": "invalid_format",
-            "format": "email",
-            "pattern": "/^(?!\\\\.)(?!.*\\\\.\\\\.)([A-Za-z0-9_'+\\\\-\\\\.]*)[A-Za-z0-9_+-]@([A-Za-z0-9][A-Za-z0-9\\\\-]*\\\\.)+[A-Za-z]{2,}$/",
-            "path": [
-              "email"
-            ],
-            "message": "Invalid email address"
-          }
-        ]"
-      `);
+      expect((err as Error).message).toMatchInlineSnapshot(
+        `"request-validation-formatted: Request parsing failed for endpoint "login""`,
+      );
       expect(failedMessages).toHaveLength(0);
     }
 
@@ -345,16 +334,9 @@ describe('Given the simple login/logout API Client and definition', async () => 
       await client.request('invalidResponseFromServer');
       expect.fail('Should have thrown');
     } catch (err) {
-      expect((err as Error).message).toMatchInlineSnapshot(`
-        "response-validation-formatted: Response parsing failed for endpoint "invalidResponseFromServer": [
-          {
-            "expected": "object",
-            "code": "invalid_type",
-            "path": [],
-            "message": "Invalid input: expected object, received undefined"
-          }
-        ]"
-      `);
+      expect((err as Error).message).toMatchInlineSnapshot(
+        `"response-validation-formatted: Response parsing failed for endpoint "invalidResponseFromServer""`,
+      );
       expect(failedMessages).toHaveLength(0);
     }
   });
