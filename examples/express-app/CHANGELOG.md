@@ -1,5 +1,14 @@
 # @unruly-software/api-example-express-server
 
+## 0.1.5
+
+### Patch Changes
+
+- Updated dependencies [8360c01]
+  - @unruly-software/api-client@2.0.3
+  - @unruly-software/api-server@2.0.3
+  - @unruly-software/api-server-express@2.0.3
+
 ## 0.1.4
 
 ### Patch Changes

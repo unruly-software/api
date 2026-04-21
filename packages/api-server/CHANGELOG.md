@@ -1,5 +1,13 @@
 # @unruly-software/api-server
 
+## 2.0.3
+
+### Patch Changes
+
+- 8360c01: Throw APIError from instead of Error in all locations
+- Updated dependencies [8360c01]
+  - @unruly-software/api-client@2.0.3
+
 ## 2.0.2
 
 ### Patch Changes
