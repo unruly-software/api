@@ -1,7 +1,7 @@
 {
   "name": "@unruly-software/api-server",
   "packageManager": "yarn@3.5.0",
-  "version": "2.0.2",
+  "version": "2.0.3",
   "license": "MIT",
   "type": "module",
   "sideEffects": false,
@@ -13,7 +13,7 @@
     "test": "vitest"
   },
   "peerDependencies": {
-    "@unruly-software/api-client": "^2.0.2"
+    "@unruly-software/api-client": "^2.0.3"
   },
   "devDependencies": {
     "@unruly-software/api-client": "workspace:*",

@@ -1,5 +1,13 @@
 # @unruly-software/api-example-query
 
+## 0.0.4
+
+### Patch Changes
+
+- Updated dependencies [8360c01]
+  - @unruly-software/api-query@2.0.3
+  - @unruly-software/api-example-existing-api@0.0.4
+
 ## 0.0.3
 
 ### Patch Changes

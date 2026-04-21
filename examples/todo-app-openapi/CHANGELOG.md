@@ -1,5 +1,12 @@
 # @unruly-software/api-example-todo-openapi
 
+## 0.0.4
+
+### Patch Changes
+
+- Updated dependencies [8360c01]
+  - @unruly-software/api-client@2.0.3
+
 ## 0.0.3
 
 ### Patch Changes
