@@ -159,12 +159,13 @@ const testMountOptions: MountOptionsFor<TestAPI> = {
   },
 };
 
-const { useAPIQuery, useAPIMutation } = mountAPIQueryClient({
-  apiClient,
-  queryClient,
-  queryKeys: config,
-  ...testMountOptions,
-});
+const { useAPIQuery, useAPIInfiniteQuery, useAPIMutation } =
+  mountAPIQueryClient({
+    apiClient,
+    queryClient,
+    queryKeys: config,
+    ...testMountOptions,
+  });
 
 describe('Type Tests for API Query Integration', () => {
   describe('mount options type', () => {
@@ -287,6 +288,70 @@ describe('Type Tests for API Query Integration', () => {
       useAPIQuery('getUser', { data: { userId: 123, extra: 'prop' } });
       // @ts-expect-error
       useAPIQuery('nonExistentEndpoint', { data: {} });
+    });
+  });
+
+  describe('useAPIInfiniteQuery hook types', () => {
+    const pageOptions = {
+      initialPageParam: 0,
+      withPageParam: (
+        data: { userId: number; limit?: number; offset?: number },
+        offset: number,
+      ) => ({ ...data, offset }),
+      getNextPageParam: (last: { total: number }, all: unknown[]) =>
+        all.length * 10 < last.total ? all.length * 10 : undefined,
+    };
+
+    it('should type pages as the endpoint response', () => {
+      const posts = useAPIInfiniteQuery('getUserPosts', {
+        data: { userId: 1, limit: 10 },
+        ...pageOptions,
+      });
+
+      expectTypeOf(posts.data?.pages).toEqualTypeOf<
+        | Array<{
+            posts: Array<{
+              id: number;
+              title: string;
+              content: string;
+              authorId: number;
+            }>;
+            total: number;
+          }>
+        | undefined
+      >();
+      expectTypeOf(posts.data?.pageParams).toEqualTypeOf<
+        number[] | undefined
+      >();
+    });
+
+    it('should type withPageParam and getNextPageParam from the endpoint', () => {
+      useAPIInfiniteQuery('getUserPosts', {
+        data: { userId: 1 },
+        initialPageParam: 0,
+        withPageParam: (data, offset) => {
+          expectTypeOf(data.userId).toEqualTypeOf<number>();
+          expectTypeOf(offset).toEqualTypeOf<number>();
+          return { ...data, offset };
+        },
+        getNextPageParam: (last) => {
+          expectTypeOf(last.total).toEqualTypeOf<number>();
+          return undefined;
+        },
+      });
+    });
+
+    it('should accept null data and reject invalid requests', () => {
+      useAPIInfiniteQuery('getUserPosts', { data: null, ...pageOptions });
+
+      useAPIInfiniteQuery('getUserPosts', {
+        // @ts-expect-error
+        data: { userId: 'invalid' },
+        ...pageOptions,
+      });
+
+      // @ts-expect-error
+      useAPIInfiniteQuery('getUserPosts', { data: { userId: 1 } });
     });
   });
 

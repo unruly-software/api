@@ -149,18 +149,35 @@ export const defineRouter = <API extends APIEndpointDefinitions, CTX>(input: {
   };
 };
 
+type UnionToIntersection<U> = (U extends any ? (k: U) => void : never) extends (
+  k: infer I,
+) => void
+  ? I
+  : never;
+
+type MergedRouterAPI<
+  T extends readonly ImplementedAPIRouter<APIEndpointDefinitions, any>[],
+> = Extract<
+  UnionToIntersection<
+    T[number] extends ImplementedAPIRouter<infer A, any> ? A : never
+  >,
+  APIEndpointDefinitions
+>;
+
+type MergedRouterCtx<
+  T extends readonly ImplementedAPIRouter<APIEndpointDefinitions, any>[],
+> = UnionToIntersection<
+  T[number] extends ImplementedAPIRouter<any, infer C> ? C : never
+>;
+
 export const mergeImplementedRouters = <
-  R1_API extends APIEndpointDefinitions,
-  R1_CTX,
-  R2_API extends APIEndpointDefinitions,
-  R2_CTX,
+  T extends readonly ImplementedAPIRouter<APIEndpointDefinitions, any>[],
 >(
-  r1: ImplementedAPIRouter<R1_API, R1_CTX>,
-  r2: ImplementedAPIRouter<R2_API, R2_CTX>,
-): ImplementedAPIRouter<R1_API & R2_API, R1_CTX & R2_CTX> => {
-  return defineRouter<R1_API & R2_API, R1_CTX & R2_CTX>({
-    definitions: { ...r1.definitions, ...r2.definitions },
+  ...routers: T
+): ImplementedAPIRouter<MergedRouterAPI<T>, MergedRouterCtx<T>> => {
+  return defineRouter<MergedRouterAPI<T>, MergedRouterCtx<T>>({
+    definitions: Object.assign({}, ...routers.map((r) => r.definitions)),
   }).implement({
-    endpoints: { ...r1.endpoints, ...r2.endpoints },
+    endpoints: Object.assign({}, ...routers.map((r) => r.endpoints)),
   });
 };

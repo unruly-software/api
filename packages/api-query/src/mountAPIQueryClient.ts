@@ -1,10 +1,17 @@
 /** biome-ignore-all lint/style/useShorthandFunctionType: Leave as interface */
 import {
+  type GetNextPageParamFunction,
+  type GetPreviousPageParamFunction,
+  type InfiniteData,
   type QueryClient,
+  type QueryKey,
+  type UseInfiniteQueryOptions,
+  type UseInfiniteQueryResult,
   type UseMutationOptions,
   type UseMutationResult,
   type UseQueryOptions,
   type UseQueryResult,
+  useInfiniteQuery,
   useMutation,
   useQuery,
 } from '@tanstack/react-query';
@@ -259,6 +266,82 @@ export type APIQueryHook<
 ) => UseQueryResult<SchemaInferOutput<API[ENDPOINT]['response']>, Error>;
 
 /**
+ * Options object passed to `useAPIInfiniteQuery`. `data` is the base request
+ * (or `null` to disable the query); `withPageParam` merges the current page
+ * param into it to build the request sent for each page.
+ *
+ * Endpoint-level `queryOptions` from the mount config are not applied —
+ * they're typed for `useQuery`, not `useInfiniteQuery`.
+ *
+ * @example
+ *   useAPIInfiniteQuery('searchPosts', {
+ *     data: { query: 'react' },
+ *     initialPageParam: 1,
+ *     withPageParam: (data, page) => ({ ...data, page }),
+ *     getNextPageParam: (last) => last.nextPage ?? undefined,
+ *   });
+ */
+export type APIInfiniteQueryOptions<
+  DEF extends AnyEndpointDefinition,
+  TPageParam,
+> = {
+  data: SchemaInferInput<DEF['request']> | null;
+  initialPageParam: TPageParam;
+  /** Build the request for a page from the base `data` and its page param. */
+  withPageParam: (
+    data: SchemaInferInput<DEF['request']>,
+    pageParam: TPageParam,
+  ) => SchemaInferInput<DEF['request']>;
+  /** Return the next page param, or `undefined`/`null` when there are no more pages. */
+  getNextPageParam: GetNextPageParamFunction<
+    TPageParam,
+    SchemaInferOutput<DEF['response']>
+  >;
+  getPreviousPageParam?: GetPreviousPageParamFunction<
+    TPageParam,
+    SchemaInferOutput<DEF['response']>
+  >;
+  /** Per-call react-query overrides. */
+  overrides?: Omit<
+    UseInfiniteQueryOptions<
+      SchemaInferOutput<DEF['response']>,
+      Error,
+      InfiniteData<SchemaInferOutput<DEF['response']>, TPageParam>,
+      QueryKey,
+      TPageParam
+    >,
+    | 'queryFn'
+    | 'queryKey'
+    | 'initialPageParam'
+    | 'getNextPageParam'
+    | 'getPreviousPageParam'
+  >;
+};
+
+/**
+ * The signature of the `useAPIInfiniteQuery` hook returned by
+ * `mountAPIQueryClient`. Its cache key is the endpoint's resolved key for
+ * `data` with `'$infinite'` appended, so prefix invalidations registered for
+ * the endpoint also refetch it.
+ *
+ * @example
+ *   const { useAPIInfiniteQuery } = mountAPIQueryClient({ ... });
+ *   const posts = useAPIInfiniteQuery('searchPosts', { ... });
+ *   posts.data?.pages.flatMap((page) => page.posts);
+ *   posts.fetchNextPage();
+ */
+export type APIInfiniteQueryHook<API extends APIEndpointDefinitions> = <
+  ENDPOINT extends keyof API,
+  TPageParam,
+>(
+  endpoint: ENDPOINT,
+  options: APIInfiniteQueryOptions<API[ENDPOINT], TPageParam>,
+) => UseInfiniteQueryResult<
+  InfiniteData<SchemaInferOutput<API[ENDPOINT]['response']>, TPageParam>,
+  Error
+>;
+
+/**
  * Options object passed to `useAPIMutation`. Carries `overrides` for any
  * react-query mutation option except `mutationFn` (owned by the bundle).
  *
@@ -317,8 +400,8 @@ export type APIMutationHook<API extends APIEndpointDefinitions> = <
 >;
 
 /**
- * The pair of hooks returned by `mountAPIQueryClient` — one for queries and
- * one for mutations, each typed against the bundle's api definition and the
+ * The hooks returned by `mountAPIQueryClient` — queries, infinite queries and
+ * mutations, each typed against the bundle's api definition and the
  * strict-mode `KEYS` type parameter.
  */
 export interface MountedQueries<
@@ -328,13 +411,17 @@ export interface MountedQueries<
   /** React-query `useQuery` wrapper. */
   useAPIQuery: APIQueryHook<API, KEYS>;
 
+  /** React-query `useInfiniteQuery` wrapper. */
+  useAPIInfiniteQuery: APIInfiniteQueryHook<API>;
+
   /** React-query `useMutation` wrapper. */
   useAPIMutation: APIMutationHook<API>;
 }
 
 /**
  * Wire a `defineAPIQueryKeys` bundle and an `APIClient` to a TanStack
- * `QueryClient`. Returns the `useAPIQuery` and `useAPIMutation` hooks.
+ * `QueryClient`. Returns the `useAPIQuery`, `useAPIInfiniteQuery` and
+ * `useAPIMutation` hooks.
  *
  * ```ts
  * const queryKeys = defineAPIQueryKeys(api, { ... });
@@ -393,28 +480,45 @@ export const mountAPIQueryClient = <
     }
   });
 
+  const resolveKey = (endpoint: string, data: unknown) =>
+    queryKeys.getKeyForEndpoint(
+      endpoint as keyof API,
+      (data ?? undefined) as any,
+    ) as readonly unknown[];
+
+  const isEnabled = (data: unknown, overrides?: { enabled?: unknown }) =>
+    data !== null && (overrides?.enabled ?? true);
+
+  const request = (endpoint: string, data: unknown, signal: AbortSignal) =>
+    apiClient.request(endpoint as any, { request: data as any, abort: signal });
+
   const useAPIQuery: any = (endpoint: string, ...rest: any[]) => {
     const queryOptionsArg = rest[0];
     const conf = getEndpointConfig(endpoint as keyof API);
 
     return useQuery({
-      queryKey: queryKeys.getKeyForEndpoint(
-        endpoint as keyof API,
-        queryOptionsArg?.data ?? undefined,
-      ) as readonly unknown[],
-      enabled:
-        queryOptionsArg?.data === null
-          ? false
-          : (queryOptionsArg?.overrides?.enabled ?? true),
-      queryFn: async ({ signal }: { signal: AbortSignal }) => {
-        const response = await apiClient.request(endpoint as any, {
-          request: (queryOptionsArg?.data ?? null) as any,
-          abort: signal,
-        });
-        return response;
-      },
+      queryKey: resolveKey(endpoint, queryOptionsArg?.data),
+      enabled: isEnabled(queryOptionsArg?.data, queryOptionsArg?.overrides),
+      queryFn: ({ signal }: { signal: AbortSignal }) =>
+        request(endpoint, queryOptionsArg?.data ?? null, signal),
       ...conf.queryOptions,
       ...queryOptionsArg?.overrides,
+    } as any);
+  };
+
+  const useAPIInfiniteQuery: any = (
+    endpoint: string,
+    options: APIInfiniteQueryOptions<AnyEndpointDefinition, unknown>,
+  ) => {
+    const { data, withPageParam, overrides, ...pageParamOptions } = options;
+
+    return useInfiniteQuery({
+      queryKey: [...resolveKey(endpoint, data), '$infinite'],
+      queryFn: ({ pageParam, signal }: any) =>
+        request(endpoint, withPageParam(data, pageParam), signal),
+      ...pageParamOptions,
+      ...overrides,
+      enabled: isEnabled(data, overrides),
     } as any);
   };
 
@@ -434,6 +538,7 @@ export const mountAPIQueryClient = <
 
   return {
     useAPIQuery,
+    useAPIInfiniteQuery,
     useAPIMutation,
   };
 };

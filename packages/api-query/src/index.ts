@@ -9,6 +9,8 @@ export {
 } from './defineAPIQueryKeys';
 
 export {
+  type APIInfiniteQueryHook,
+  type APIInfiniteQueryOptions,
   type APIMutationHook,
   type APIMutationOptions,
   type APIQueryHook,
