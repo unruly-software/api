@@ -45,6 +45,8 @@ jobs:
         id: changesets
         uses: changesets/action@v1
         with:
+          # Must be `yarn run version`: `yarn version` is a Yarn builtin and would skip the lockfile update
+          version: yarn run version
           publish: yarn release
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
