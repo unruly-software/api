@@ -3,6 +3,11 @@
   "packageManager": "yarn@3.5.0",
   "version": "3.0.0",
   "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/unruly-software/api.git",
+    "directory": "packages/api-client"
+  },
   "type": "module",
   "sideEffects": false,
   "description": "Modelling Typescript value objects on top of Zod schemas. Define a type once, get runtime validation, a real class you can attach methods to, and lossless JSON.stringify round-tripping — without writing boilerplate.",

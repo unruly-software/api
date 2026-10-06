@@ -3,6 +3,11 @@
   "packageManager": "yarn@3.5.0",
   "version": "3.0.0",
   "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/unruly-software/api.git",
+    "directory": "packages/api-server"
+  },
   "type": "module",
   "sideEffects": false,
   "description": "A typed router for implementing the endpoint definitions you declared with `@unruly-software/api-client`. It validates incoming requests and outgoing responses against your Zod schemas, injects an application-defined context into every handler, and stays out of the way of the actual transport.",

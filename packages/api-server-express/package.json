@@ -3,6 +3,11 @@
   "packageManager": "yarn@3.5.0",
   "version": "3.0.0",
   "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/unruly-software/api.git",
+    "directory": "packages/api-server-express"
+  },
   "type": "module",
   "sideEffects": false,
   "scripts": {
