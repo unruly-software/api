@@ -1,5 +1,14 @@
 # @unruly-software/api-server-express
 
+## 3.0.0
+
+### Patch Changes
+
+- Updated dependencies [94f13f3]
+- Updated dependencies [94f13f3]
+  - @unruly-software/api-client@3.0.0
+  - @unruly-software/api-server@3.0.0
+
 ## 2.0.3
 
 ### Patch Changes

@@ -1,5 +1,16 @@
 # @unruly-software/api-server
 
+## 3.0.0
+
+### Minor Changes
+
+- 94f13f3: `mergeImplementedRouters` now accepts any number of routers instead of exactly two.
+
+### Patch Changes
+
+- Updated dependencies [94f13f3]
+  - @unruly-software/api-client@3.0.0
+
 ## 2.0.3
 
 ### Patch Changes

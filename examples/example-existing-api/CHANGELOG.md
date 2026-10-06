@@ -1,5 +1,12 @@
 # @unruly-software/api-example-existing-api
 
+## 0.0.5
+
+### Patch Changes
+
+- Updated dependencies [94f13f3]
+  - @unruly-software/api-client@3.0.0
+
 ## 0.0.4
 
 ### Patch Changes

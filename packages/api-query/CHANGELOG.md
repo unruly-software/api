@@ -1,5 +1,16 @@
 # @unruly-software/api-query
 
+## 3.0.0
+
+### Minor Changes
+
+- 6772a79: Add `useAPIInfiniteQuery`, a typed `useInfiniteQuery` wrapper returned by `mountAPIQueryClient`. Pages are cached under the endpoint's resolved key with `'$infinite'` appended, so existing prefix invalidations also refetch them.
+
+### Patch Changes
+
+- Updated dependencies [94f13f3]
+  - @unruly-software/api-client@3.0.0
+
 ## 2.0.3
 
 ### Patch Changes
