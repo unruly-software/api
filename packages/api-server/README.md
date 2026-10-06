@@ -194,17 +194,22 @@ const getUser = router
 ## Composing routers
 
 Split a large API across multiple files and merge them at the edge with
-`mergeImplementedRouters`. Definitions are unioned and context types are
-intersected, so the merged router needs a context that satisfies both
-inputs:
+`mergeImplementedRouters`, which takes any number of routers. Definitions
+are unioned and context types are intersected, so the merged router needs a
+context that satisfies every input:
 
 ```typescript
 import { mergeImplementedRouters } from '@unruly-software/api-server';
 import { userRouter } from './user-router';
 import { orderRouter } from './order-router';
+import { billingRouter } from './billing-router';
 
-export const apiRouter = mergeImplementedRouters(userRouter, orderRouter);
-// dispatch needs a context that satisfies both UserContext & OrderContext
+export const apiRouter = mergeImplementedRouters(
+  userRouter,
+  orderRouter,
+  billingRouter,
+);
+// dispatch needs UserContext & OrderContext & BillingContext
 ```
 
 ## Mounting on a transport

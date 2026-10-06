@@ -403,6 +403,13 @@ The mutation's `variables` type is the endpoint's request payload; the
 result type is its response. `overrides` accepts every React Query
 `useMutation` option except `mutationFn`.
 
+### Batching queries
+
+Use a batched virtual endpoint from
+[`api-client`](../api-client#batching-requests) to load many items in one
+request. Each `useAPIQuery('getThumbnail', { data: { fileId } })` still has its
+own cache key; queries that fetch at the same time share a request.
+
 ## API Reference
 
 ### `defineAPIQueryKeys(api, queryKeys)`

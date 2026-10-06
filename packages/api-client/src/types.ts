@@ -15,6 +15,8 @@ export type APIResolver<T extends APIEndpointDefinitions> = (
 export type APIEndpointDefinitions = Record<string, AnyEndpointDefinition>;
 
 export type APIClientConfig<T extends APIEndpointDefinitions> = {
+  /** Virtual endpoints (see `defineVirtualEndpoints`) never reach the
+   *  resolver — they're sent as batches through their `via` endpoint. */
   resolver: APIResolver<T>;
 };
 
