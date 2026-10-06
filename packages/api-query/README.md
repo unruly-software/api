@@ -17,7 +17,8 @@
 [![Downloads](https://img.shields.io/npm/dm/@unruly-software/api-query?style=flat&colorA=18181B&colorB=28CF8D)](https://www.npmjs.com/package/@unruly-software/api-query)
 
 React Query integration for `@unruly-software/api-client`. Endpoint
-definitions become typed `useAPIQuery` and `useAPIMutation` hooks with
+definitions become typed `useAPIQuery`, `useAPIInfiniteQuery` and
+`useAPIMutation` hooks with
 declarative cache key resolvers and event-driven invalidation.
 
 ## Table of Contents
@@ -338,6 +339,42 @@ useAPIQuery('getUser', { data: userId === null ? null : { userId } });
 `overrides` accepts every React Query `useQuery` option except `queryFn` and
 `queryKey`.
 
+### `useAPIInfiniteQuery`
+
+```tsx
+function PostFeed({ query }: { query: string }) {
+  const posts = useAPIInfiniteQuery('searchPosts', {
+    data: { query },
+    initialPageParam: 1,
+    withPageParam: (data, page) => ({ ...data, page }),
+    getNextPageParam: (lastPage) => lastPage.nextPage,
+  });
+
+  return (
+    <>
+      {posts.data?.pages.flatMap((page) => page.posts).map((post) => (
+        <PostRow key={post.id} post={post} />
+      ))}
+      {posts.hasNextPage && (
+        <button type="button" onClick={() => posts.fetchNextPage()}>
+          Load more
+        </button>
+      )}
+    </>
+  );
+}
+```
+
+`data` is the base request; `withPageParam` merges each page param into it
+to build the request for that page. Pass `data: null` to disable the query.
+
+The cache key is the endpoint's resolved key for `data` with `'$infinite'`
+appended, so every `invalidates` key that matches a prefix of the endpoint's
+key also refetches its infinite queries. `overrides` accepts every React
+Query `useInfiniteQuery` option except `queryFn`, `queryKey` and the page
+param options. Per-endpoint `queryOptions` from the mount config are not
+applied, since they are typed for `useQuery`.
+
 ### `useAPIMutation`
 
 ```tsx
@@ -365,6 +402,13 @@ function EditUser({ user }: { user: { id: number } }) {
 The mutation's `variables` type is the endpoint's request payload; the
 result type is its response. `overrides` accepts every React Query
 `useMutation` option except `mutationFn`.
+
+### Batching queries
+
+Use a batched virtual endpoint from
+[`api-client`](../api-client#batching-requests) to load many items in one
+request. Each `useAPIQuery('getThumbnail', { data: { fileId } })` still has its
+own cache key; queries that fetch at the same time share a request.
 
 ## API Reference
 
@@ -394,7 +438,7 @@ function queryKey<const T extends readonly QueryKeyItem[]>(...key: T): T;
 
 ### `mountAPIQueryClient(args)`
 
-Wires the bundle to a `QueryClient` and returns the hook pair. Pass
+Wires the bundle to a `QueryClient` and returns the hooks. Pass
 `<typeof api, QueryKeysFor<typeof queryKeys>>` as type parameters for strict
 mode; omit them for free-form mode.
 
@@ -403,6 +447,7 @@ function mountAPIQueryClient<API, KEYS = readonly QueryKeyItem[]>(
   args: MountAPIQueryClientArgs<API, KEYS>,
 ): {
   useAPIQuery: APIQueryHook<API, KEYS>;
+  useAPIInfiniteQuery: APIInfiniteQueryHook<API>;
   useAPIMutation: APIMutationHook<API>;
 };
 ```
@@ -419,10 +464,12 @@ function mountAPIQueryClient<API, KEYS = readonly QueryKeyItem[]>(
 | `MountAPIQueryClientArgs<API, KEYS>` | The single args object accepted by `mountAPIQueryClient`. |
 | `EndpointConfig<API, K, KEYS>` | A single entry under `endpoints[K]`. |
 | `APIQueryOptions<DEF, KEYS>` | The options object accepted by `useAPIQuery`. |
+| `APIInfiniteQueryOptions<DEF, TPageParam>` | The options object accepted by `useAPIInfiniteQuery`. |
 | `APIMutationOptions<DEF>` | The options object accepted by `useAPIMutation`. |
 | `APIQueryHook<API, KEYS>` | The signature of `useAPIQuery`. |
+| `APIInfiniteQueryHook<API>` | The signature of `useAPIInfiniteQuery`. |
 | `APIMutationHook<API>` | The signature of `useAPIMutation`. |
-| `MountedQueries<API, KEYS>` | The hook pair returned by `mountAPIQueryClient`. |
+| `MountedQueries<API, KEYS>` | The hooks returned by `mountAPIQueryClient`. |
 
 ## License
 

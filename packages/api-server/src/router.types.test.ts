@@ -478,6 +478,117 @@ describe('Router Type Tests', () => {
       // mergedRouter.dispatch({ endpoint: 'healthCheck', data: {} as never, context: { userService: {}, healthService: {} } });
       // mergedRouter.dispatch({ endpoint: 'deleteUser', data: { userId: 123 }, context: { userService: {}, healthService: {} } });
     });
+
+    it('should correctly type three merged routers in a single call', () => {
+      const userAPI = {
+        getUser: testDefinitions.getUser,
+        createUser: testDefinitions.createUser,
+      };
+      const healthAPI = {
+        healthCheck: testDefinitions.healthCheck,
+      };
+      const adminAPI = {
+        deleteUser: testDefinitions.deleteUser,
+      };
+
+      const userRouter = defineRouter<typeof userAPI, { userService: any }>({
+        definitions: userAPI,
+      }).implement({
+        endpoints: {
+          getUser: defineRouter({ definitions: userAPI })
+            .endpoint('getUser')
+            .handle(async () => ({
+              id: 1,
+              name: 'Test',
+              email: 'test@example.com',
+            })),
+          createUser: defineRouter({ definitions: userAPI })
+            .endpoint('createUser')
+            .handle(async () => ({
+              id: 1,
+              name: 'Test',
+              email: 'test@example.com',
+            })),
+        },
+      });
+
+      const healthRouter = defineRouter<
+        typeof healthAPI,
+        { healthService: any }
+      >({
+        definitions: healthAPI,
+      }).implement({
+        endpoints: {
+          healthCheck: defineRouter({ definitions: healthAPI })
+            .endpoint('healthCheck')
+            .handle(async () => ({
+              status: 'ok' as const,
+              timestamp: Date.now(),
+            })),
+        },
+      });
+
+      const adminRouter = defineRouter<typeof adminAPI, { adminService: any }>({
+        definitions: adminAPI,
+      }).implement({
+        endpoints: {
+          deleteUser: defineRouter({ definitions: adminAPI })
+            .endpoint('deleteUser')
+            .handle(async () => undefined),
+        },
+      });
+
+      const mergedRouter = mergeImplementedRouters(
+        userRouter,
+        healthRouter,
+        adminRouter,
+      );
+
+      expectTypeOf(mergedRouter.definitions).toEqualTypeOf<
+        typeof userAPI & typeof healthAPI & typeof adminAPI
+      >();
+
+      expectTypeOf(mergedRouter.endpoints).toMatchTypeOf<{
+        getUser: any;
+        createUser: any;
+        healthCheck: any;
+        deleteUser: any;
+      }>();
+
+      // Dispatch from each constituent router requires the intersected context.
+      const context = { userService: {}, healthService: {}, adminService: {} };
+      const getUserResult = mergedRouter.dispatch({
+        endpoint: 'getUser',
+        data: { userId: 123 },
+        context,
+      });
+      expectTypeOf(getUserResult).toEqualTypeOf<
+        Promise<{ id: number; name: string; email: string }>
+      >();
+
+      const healthResult = mergedRouter.dispatch({
+        endpoint: 'healthCheck',
+        data: {} as never,
+        context,
+      });
+      expectTypeOf(healthResult).toEqualTypeOf<
+        Promise<{ status: 'ok'; timestamp: number }>
+      >();
+
+      const deleteResult = mergedRouter.dispatch({
+        endpoint: 'deleteUser',
+        data: { userId: 123 },
+        context,
+      });
+      expectTypeOf(deleteResult).toEqualTypeOf<Promise<void>>();
+
+      mergedRouter.dispatch({
+        endpoint: 'getUser',
+        data: { userId: 123 },
+        // @ts-expect-error — missing adminService should be a type error.
+        context: { userService: {}, healthService: {} },
+      });
+    });
   });
 
   describe('Edge Cases and Complex Types', () => {

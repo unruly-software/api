@@ -261,6 +261,61 @@ const promise = client.request('getUser', {
 controller.abort();
 ```
 
+## Batching requests
+
+`defineVirtualEndpoints` adds client-only endpoints that are sent in batches
+through a real endpoint. Calls queued within `windowMs` of the first one go
+out as one request. The server never sees virtual endpoints, and their names
+can't clash with real ones.
+
+```typescript
+// Shared with the server: only the batch endpoint exists there.
+const api = {
+  getThumbnails: defineEndpoint({
+    request: z.object({ fileIds: z.array(z.string()) }),
+    response: z.object({ items: z.array(Thumbnail) }),
+    metadata: { path: '/thumbnails', method: 'POST' },
+  }),
+};
+
+// Client only.
+const clientApi = defineVirtualEndpoints(api, (batched) => ({
+  getThumbnail: batched({
+    via: 'getThumbnails',
+    request: z.object({ fileId: z.string() }),
+    response: Thumbnail,
+    toRequest: (reqs) => ({ fileIds: reqs.map((r) => r.fileId) }),
+    fromResponse: (res, req) => res.items.find((t) => t.fileId === req.fileId),
+    key: (req) => req.fileId, // optional; same key is sent once
+    windowMs: 20, // defaults to 0 (a setTimeout(0) macrotask)
+    maxBatchSize: 100, // send early once this many are queued
+  }),
+}));
+
+const client = new APIClient(clientApi, { resolver });
+
+// These three calls become one `getThumbnails({ fileIds: ['a', 'b', 'c'] })`.
+await Promise.all(
+  ['a', 'b', 'c'].map((fileId) =>
+    client.request('getThumbnail', { request: { fileId } }),
+  ),
+);
+```
+
+- The resolver only receives the `via` call, validated against its schemas.
+- Each caller gets its own validated response, error formatting and
+  `$succeeded` / `$failed` event. The batch call itself publishes none.
+- If `fromResponse` returns `undefined`, only that caller fails (unless
+  `response` is `null`). If the batch fails, every caller in it fails.
+- If the combined request or response fails validation, callers get the
+  parsing error with the matching validation stage, and `$failed` isn't
+  published, the same as for a real endpoint.
+- The batch is aborted only once every caller in it has aborted.
+- Results aren't cached. With [`api-query`](../api-query),
+  `useAPIQuery('getThumbnail', ...)` works as normal.
+
+`createBatchLoader` is also exported for batching outside an `APIClient`.
+
 ## Observing requests
 
 Every client exposes two topics. Subscribe to either; the returned function
@@ -285,7 +340,7 @@ you need to observe them.
 | Package | When you'd reach for it |
 |---|---|
 | **[`@unruly-software/api-server`](../api-server)** | When you also own the server side and want typed handlers with shared definitions and a context object. |
-| **[`@unruly-software/api-query`](../api-query)** | When you're using `@tanstack/react-query` and want typed `useAPIQuery` / `useAPIMutation` hooks with declarative cache invalidation. |
+| **[`@unruly-software/api-query`](../api-query)** | When you're using `@tanstack/react-query` and want typed `useAPIQuery` / `useAPIInfiniteQuery` / `useAPIMutation` hooks with declarative cache invalidation. |
 | **[`@unruly-software/api-server-express`](../api-server-express)** *(experimental)* | When you want to plug an `api-server` router into an Express app, including the `handleError` hook used above. |
 
 For end-to-end walkthroughs — including the typed-error round trip against a

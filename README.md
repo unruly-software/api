@@ -172,7 +172,7 @@ None of them are required, and you can mix and match.
 |---|---|
 | **[`@unruly-software/api-client`](./packages/api-client)** | Always — this is the core. Defines endpoints, validates I/O, dispatches via your resolver. |
 | **[`@unruly-software/api-server`](./packages/api-server)** | When you also own the server side and want typed handlers with shared definitions, automatic validation, and a context object for dependency injection. |
-| **[`@unruly-software/api-query`](./packages/api-query)** | When you're using `@tanstack/react-query` and want typed `useAPIQuery` / `useAPIMutation` hooks with declarative cache invalidation. |
+| **[`@unruly-software/api-query`](./packages/api-query)** | When you're using `@tanstack/react-query` and want typed `useAPIQuery` / `useAPIInfiniteQuery` / `useAPIMutation` hooks with declarative cache invalidation. |
 | **[`@unruly-software/api-server-express`](./packages/api-server-express)** *(experimental)* | When you want to plug an `api-server` router into an Express app without writing the request/response glue yourself. |
 
 ### Adding a server
