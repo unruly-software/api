@@ -1,5 +1,15 @@
 # @unruly-software/api-example-fastify-server
 
+## 0.1.5
+
+### Patch Changes
+
+- Updated dependencies [94f13f3]
+- Updated dependencies [94f13f3]
+  - @unruly-software/api-client@3.0.0
+  - @unruly-software/api-server@3.0.0
+  - @unruly-software/api-example-existing-api@0.0.5
+
 ## 0.1.4
 
 ### Patch Changes
